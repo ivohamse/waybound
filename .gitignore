@@ -1,0 +1,27 @@
+# 1. Afhankelijkheden (Dependencies)
+node_modules/
+.pnp/
+.pnp.js
+
+# 2. Build & Productie bestanden
+dist/
+build/
+
+# 3. Lokale Test Bestanden (CRUCIAL VOOR JE API KEYS!)
+test-run.ts
+test-run.js
+test-run.json
+
+# 4. Lokale Yalc winkelbestanden
+.yalc/
+yalc.lock
+
+# 5. Systeem & Editor specifieke bestanden
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 6. Test & Dekkingsrapporten (Vitest)
+coverage/
+*.log

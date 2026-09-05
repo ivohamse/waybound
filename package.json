@@ -1,0 +1,58 @@
+{
+  "name": "waybound",
+  "version": "0.3.2",
+  "description": "A unified, multi-provider routing and geospatial engine for TypeScript.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "imports": {
+    "#src": "./src/*.ts",
+    "#types": "./src/types.ts",
+    "#utils/*": "./src/utils/*.ts",
+    "#providers/*": [
+      "./src/providers/*/index.ts",
+      "./src/providers/*.ts"
+    ]
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup && tsc --emitDeclarationOnly --declaration --outDir dist",
+    "dev": "tsup --watch",
+    "test": "tsup && node --import tsx test-run.ts",
+    "publish": "npm run build && yalc push",
+    "test:unit": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "routing",
+    "geojson",
+    "openrouteservice",
+    "graphhopper",
+    "maps",
+    "hike",
+    "bike"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/geojson": "latest",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.13",
+    "typescript": "latest"
+  },
+  "overrides": {
+    "esbuild": "latest"
+  },
+  "dependencies": {
+    "waybound": "file:.yalc/waybound"
+  }
+}

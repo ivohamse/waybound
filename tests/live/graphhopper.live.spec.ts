@@ -68,8 +68,10 @@ describe("GraphHopper live integration", () => {
   });
 
   it("generates real isochrones or reports the account limitation", async () => {
+    let response;
+
     try {
-      const response = await router.getIsochrones({
+      response = await router.getIsochrones({
         coordinate: UTRECHT_CENTRE,
         profile: "bike",
         options: {
@@ -77,13 +79,6 @@ describe("GraphHopper live integration", () => {
           ranges: [600],
         },
       });
-
-      expect(response.provider).toBe("GraphHopper");
-      expect(response.isochrones).toHaveLength(1);
-      expect(response.isochrones[0].value).toBe(600);
-      expect(["Polygon", "MultiPolygon"]).toContain(
-        response.isochrones[0].geometry.type,
-      );
     } catch (error) {
       expect(error).toMatchObject({
         name: "WayboundError",
@@ -91,6 +86,14 @@ describe("GraphHopper live integration", () => {
         provider: "GraphHopper",
         status: 400,
       });
+      return;
     }
+
+    expect(response.provider).toBe("GraphHopper");
+    expect(response.isochrones).toHaveLength(1);
+    expect(response.isochrones[0].value).toBe(600);
+    expect(["Polygon", "MultiPolygon"]).toContain(
+      response.isochrones[0].geometry.type,
+    );
   });
 });

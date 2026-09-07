@@ -8,11 +8,14 @@ import {
   MatrixResponse,
   IsochroneQuery,
   IsochroneResponse,
+  ProfileType,
 } from "#types";
+import type { ProviderCapabilities } from "./capabilities";
 import { OpenRouteServiceProvider } from "#providers/ors";
 import { GraphHopperProvider } from "#providers/graphhopper";
 
 export type ProviderType = "ors" | "graphhopper";
+export type CapabilityFeature = keyof ProviderCapabilities;
 
 export interface RouterConfig {
   provider: ProviderType;
@@ -36,11 +39,32 @@ export class Router {
     }
   }
 
+  private assertCapability(
+    feature: CapabilityFeature,
+    profile: ProfileType,
+  ): void {
+    const capability = this.activeProvider.capabilities[feature];
+
+    if (!capability.supported) {
+      throw new Error(
+        `[waybound -> ${this.activeProvider.name}] ${feature} is not supported by this provider.`,
+      );
+    }
+
+    if (!capability.profiles.includes(profile)) {
+      throw new Error(
+        `[waybound -> ${this.activeProvider.name}] Profile "${profile}" is not supported for ${feature}.`,
+      );
+    }
+  }
+
   public async getRoute(query: RouteQuery): Promise<RouteResponse> {
+    this.assertCapability("directions", query.profile);
     return this.activeProvider.getRoute(query);
   }
 
   public async getNearest(query: NearestQuery): Promise<NearestResponse> {
+    this.assertCapability("nearest", query.profile);
     return this.activeProvider.getNearest(query);
   }
 
@@ -49,6 +73,8 @@ export class Router {
    * tussen alle meegegeven locaties.
    */
   public async getMatrix(query: MatrixQuery): Promise<MatrixResponse> {
+    this.assertCapability("matrix", query.profile);
+
     try {
       return await this.activeProvider.getMatrix(query);
     } catch (error: any) {
@@ -65,6 +91,8 @@ export class Router {
   public async getIsochrones(
     query: IsochroneQuery,
   ): Promise<IsochroneResponse> {
+    this.assertCapability("isochrones", query.profile);
+
     try {
       return await this.activeProvider.getIsochrones(query);
     } catch (error: any) {
@@ -76,5 +104,9 @@ export class Router {
 
   public get providerName(): string {
     return this.activeProvider.name;
+  }
+
+  public get capabilities(): ProviderCapabilities {
+    return this.activeProvider.capabilities;
   }
 }

@@ -14,9 +14,11 @@ import {
 } from "#types";
 import { GraphHopperRequestBuilder } from "./builder";
 import { GraphHopperClient } from "./client";
+import { GRAPHHOPPER_CAPABILITIES } from "./capabilities";
 
 export class GraphHopperProvider implements RoutingProvider {
   readonly name = "GraphHopper";
+  readonly capabilities = GRAPHHOPPER_CAPABILITIES;
   private builder: GraphHopperRequestBuilder;
   private client: GraphHopperClient;
 

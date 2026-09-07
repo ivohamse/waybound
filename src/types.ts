@@ -1,5 +1,6 @@
 import { LineString, Polygon, MultiPolygon } from "geojson";
 
+export type Coordinate = [longitude: number, latitude: number];
 export type ProfileType = "bike" | "hike" | "car";
 export type RouteFeature = "directions" | "snap" | "matrix" | "isochrones";
 
@@ -7,11 +8,10 @@ export type AvoidFeatureType = "tolls" | "highways" | "ferries";
 
 export interface BaseOptions {
   language?: string; // Bijv. 'nl', 'en'
-  [key: string]: any; // Flexibele fallback
 }
 
 // ==========================================
-// 1. DIRECIONS (Geüpdatet voor Alternatieve Routes)
+// 1. DIRECTIONS (Geüpdatet voor Alternatieve Routes)
 // ==========================================
 export interface RouteOptions extends BaseOptions {
   avoidFeatures?: AvoidFeatureType[];
@@ -22,7 +22,7 @@ export interface RouteOptions extends BaseOptions {
 }
 
 export interface RouteQuery {
-  coordinates: [number, number][];
+  coordinates: Coordinate[];
   profile: ProfileType;
   options?: RouteOptions;
 }
@@ -45,7 +45,7 @@ export interface Maneuver {
   instruction: string; // Bijv: "Sla rechtsaf de Donkeregaard op"
   distanceMeters: number; // Afstand tot de volgende actie
   durationSeconds: number; // Tijd tot de volgende actie
-  coordinate: [number, number]; // Waar de actie plaatsvindt [Lng, Lat]
+  coordinate: Coordinate; // Waar de actie plaatsvindt [Lng, Lat]
 }
 
 // ==========================================
@@ -56,14 +56,14 @@ export interface NearestOptions extends BaseOptions {
 }
 
 export interface NearestQuery {
-  coordinate: [number, number];
+  coordinate: Coordinate;
   profile: ProfileType;
   options?: NearestOptions;
 }
 
 export interface NearestResponse {
   provider: string;
-  snappedCoordinate: [number, number];
+  snappedCoordinate: Coordinate;
   distanceMeters: number;
   streetName?: string;
 }
@@ -74,7 +74,7 @@ export interface NearestResponse {
 export interface MatrixOptions extends BaseOptions {}
 
 export interface MatrixQuery {
-  coordinates: [number, number][]; // Alle locaties die in de matrix meenemen
+  coordinates: Coordinate[]; // Alle locaties die in de matrix meenemen
   profile: ProfileType;
   options?: MatrixOptions;
 }
@@ -94,9 +94,9 @@ export interface IsochroneOptions extends BaseOptions {
 }
 
 export interface IsochroneQuery {
-  coordinate: [number, number]; // Het startpunt van waaruit je vertrekt
+  coordinate: Coordinate; // Het startpunt van waaruit je vertrekt
   profile: ProfileType;
-  options: RouteOptions; // Hierin zijn 'rangeType' en 'ranges' verplicht!
+  options: IsochroneOptions;
 }
 
 export interface IsochroneResult {
@@ -116,8 +116,8 @@ export interface RoutingProvider {
   readonly name: string;
   getRoute(query: RouteQuery): Promise<RouteResponse>;
   getNearest(query: NearestQuery): Promise<NearestResponse>;
-  getMatrix(query: MatrixQuery): Promise<MatrixResponse>; // NIEUW!
-  getIsochrones(query: IsochroneQuery): Promise<IsochroneResponse>; // NIEUW!
+  getMatrix(query: MatrixQuery): Promise<MatrixResponse>;
+  getIsochrones(query: IsochroneQuery): Promise<IsochroneResponse>;
 }
 
 export interface HttpRequest {

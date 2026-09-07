@@ -12,6 +12,7 @@ import {
 } from "#types";
 import type { ProviderCapabilities } from "./capabilities";
 import { WayboundError } from "./errors";
+import type { HttpClientOptions } from "./http/client";
 import { OpenRouteServiceProvider } from "#providers/ors";
 import { GraphHopperProvider } from "#providers/graphhopper";
 
@@ -21,6 +22,7 @@ export type CapabilityFeature = keyof ProviderCapabilities;
 export interface RouterConfig {
   provider: ProviderType;
   apiKey: string;
+  http?: HttpClientOptions;
 }
 
 export class Router {
@@ -30,9 +32,12 @@ export class Router {
     const providerKey = config.provider.toLowerCase();
 
     if (providerKey === "ors") {
-      this.activeProvider = new OpenRouteServiceProvider(config.apiKey);
+      this.activeProvider = new OpenRouteServiceProvider(
+        config.apiKey,
+        config.http,
+      );
     } else if (providerKey === "graphhopper") {
-      this.activeProvider = new GraphHopperProvider(config.apiKey);
+      this.activeProvider = new GraphHopperProvider(config.apiKey, config.http);
     } else {
       throw new WayboundError(
         "UNSUPPORTED_PROVIDER",

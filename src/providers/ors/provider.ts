@@ -1,4 +1,4 @@
-import type { LineString, MultiPolygon, Point, Polygon } from "geojson";
+import type { LineString, MultiPolygon, Polygon } from "geojson";
 import {
   RoutingProvider,
   RouteQuery,
@@ -69,10 +69,7 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       let maneuvers: Maneuver[] | undefined;
       const segments = feature.properties?.segments;
 
-      if (
-        Array.isArray(segments) &&
-        query.options?.instructions !== false
-      ) {
+      if (Array.isArray(segments) && query.options?.instructions !== false) {
         maneuvers = [];
 
         for (const segment of segments) {
@@ -103,7 +100,7 @@ export class OpenRouteServiceProvider implements RoutingProvider {
               instruction: step.instruction,
               distanceMeters: step.distance,
               durationSeconds: step.duration,
-              coordinate: coordinate as Coordinate,
+              coordinate: [coordinate[0], coordinate[1]],
             });
           }
         }
@@ -145,8 +142,8 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       const coordinates = geometry?.coordinates;
 
       if (
+        typeof sourceIndex !== "number" ||
         !Number.isInteger(sourceIndex) ||
-        sourceIndex === undefined ||
         sourceIndex < 0 ||
         sourceIndex >= points.length ||
         !geometry ||
@@ -169,7 +166,7 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       points[sourceIndex] = {
         sourceIndex,
         inputCoordinate: query.coordinates[sourceIndex],
-        snappedCoordinate: (coordinates as Point["coordinates"]) as Coordinate,
+        snappedCoordinate: [coordinates[0], coordinates[1]],
         distanceMeters: distance ?? null,
         streetName:
           typeof feature.properties?.name === "string"

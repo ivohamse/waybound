@@ -26,9 +26,6 @@ export class OrsRequestBuilder {
     return profileMap[profile];
   }
 
-  /**
-   * Vertaalt waybound restricties naar het specifieke ORS v2 dialect
-   */
   private mapAvoidFeature(feature: AvoidFeatureType): string {
     const featureMap: Record<AvoidFeatureType, string> = {
       tolls: "tollways",
@@ -67,15 +64,13 @@ export class OrsRequestBuilder {
       language: options?.language,
     };
 
-    if (options) {
-      const { avoidFeatures, optimize } = options;
-      const features = avoidFeatures ?? [];
+    const avoidFeatures = (options?.avoidFeatures ?? [])
+      .map((feature) => this.mapAvoidFeature(feature))
+      .filter((feature) => !(profile === "hike" && feature === "tollways"));
 
+    if (avoidFeatures.length > 0) {
       requestBody.options = {
-        optimized: optimize,
-        avoid_features: features
-          .map((f) => this.mapAvoidFeature(f))
-          .filter((f) => !(profile === "hike" && f === "tollways")),
+        avoid_features: avoidFeatures,
       };
     }
 
@@ -95,7 +90,7 @@ export class OrsRequestBuilder {
       method: "POST",
       headers: this.getBaseHeaders(),
       body: JSON.stringify({
-        locations: [query.coordinate],
+        locations: query.coordinates,
         radius: query.options?.radius ?? 300,
       }),
     };
@@ -105,16 +100,14 @@ export class OrsRequestBuilder {
     const mappedProfile = this.mapProfile(query.profile);
     const url = `${this.baseUrl}/v2/matrix/${mappedProfile}`;
 
-    const requestBody = {
-      locations: query.coordinates,
-      metrics: ["duration", "distance"],
-    };
-
     return {
       url,
       method: "POST",
       headers: this.getBaseHeaders(),
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        locations: query.coordinates,
+        metrics: ["duration", "distance"],
+      }),
     };
   }
 
@@ -122,17 +115,15 @@ export class OrsRequestBuilder {
     const mappedProfile = this.mapProfile(query.profile);
     const url = `${this.baseUrl}/v2/isochrones/${mappedProfile}`;
 
-    const requestBody = {
-      locations: [query.coordinate],
-      range: query.options.ranges,
-      range_type: query.options.rangeType === "distance" ? "distance" : "time",
-    };
-
     return {
       url,
       method: "POST",
       headers: this.getBaseHeaders(),
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        locations: [query.coordinate],
+        range: query.options.ranges,
+        range_type: query.options.rangeType === "distance" ? "distance" : "time",
+      }),
     };
   }
 }

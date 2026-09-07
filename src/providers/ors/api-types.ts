@@ -1,4 +1,4 @@
-import type { LineString, MultiPolygon, Point, Polygon } from "geojson";
+import type { LineString, MultiPolygon, Polygon } from "geojson";
 
 export interface OrsDirectionsResponse {
   features?: OrsRouteFeature[];
@@ -29,14 +29,13 @@ export interface OrsStep {
 }
 
 export interface OrsSnapResponse {
-  features?: OrsSnapFeature[];
+  locations?: (OrsSnapLocation | null)[];
 }
 
-export interface OrsSnapFeature {
-  geometry?: Point;
-  properties?: {
-    source_id?: number;
-  };
+export interface OrsSnapLocation {
+  location?: number[];
+  name?: string;
+  snapped_distance?: number;
 }
 
 export interface OrsMatrixResponse {

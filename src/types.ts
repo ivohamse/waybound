@@ -5,8 +5,6 @@ export type Coordinate = [longitude: number, latitude: number];
 export type ProfileType = "bike" | "hike" | "car";
 export type RouteFeature = "directions" | "snap" | "matrix" | "isochrones";
 
-export type AvoidFeatureType = "tolls" | "highways" | "ferries";
-
 export interface BaseOptions {
   language?: string;
 }
@@ -15,10 +13,7 @@ export interface BaseOptions {
 // 1. DIRECTIONS
 // ==========================================
 export interface RouteOptions extends BaseOptions {
-  avoidFeatures?: AvoidFeatureType[];
   elevation?: boolean;
-  alternatives?: number;
-  optimize?: boolean;
   instructions?: boolean;
 }
 

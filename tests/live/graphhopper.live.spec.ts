@@ -19,7 +19,7 @@ describe("GraphHopper live integration", () => {
   it("calculates a real route", async () => {
     const response = await router.getRoute({
       coordinates: [UTRECHT_CENTRE, UTRECHT_STATION],
-      profile: "hike",
+      profile: "bike",
       options: { instructions: true, language: "en" },
     });
 
@@ -37,7 +37,7 @@ describe("GraphHopper live integration", () => {
   it("returns a nearby point for getNearest", async () => {
     const response = await router.getNearest({
       coordinate: UTRECHT_CENTRE,
-      profile: "hike",
+      profile: "bike",
     });
 
     expect(response.provider).toBe("GraphHopper");

@@ -5,15 +5,21 @@ import {
   RouteResponse,
   NearestQuery,
   NearestResponse,
+  NearestResult,
   IsochroneQuery,
   IsochroneResponse,
   MatrixQuery,
   MatrixResponse,
   Maneuver,
-  Coordinate,
 } from "#types";
 import { WayboundError } from "../../errors";
 import { HttpClient, type HttpClientOptions } from "../../http/client";
+import {
+  isCoordinate,
+  isLineString,
+  isNullableNumberMatrix,
+  isPolygonGeometry,
+} from "../validation";
 import { OrsRequestBuilder } from "./builder";
 import { ORS_CAPABILITIES } from "./capabilities";
 import type {
@@ -55,11 +61,9 @@ export class OpenRouteServiceProvider implements RoutingProvider {
 
       if (
         !summary ||
-        typeof summary.distance !== "number" ||
-        typeof summary.duration !== "number" ||
-        !geometry ||
-        geometry.type !== "LineString" ||
-        !Array.isArray(geometry.coordinates)
+        !Number.isFinite(summary.distance) ||
+        !Number.isFinite(summary.duration) ||
+        !isLineString(geometry)
       ) {
         throw this.invalidResponse(
           "Directions feature is missing required summary or geometry fields.",
@@ -84,12 +88,9 @@ export class OpenRouteServiceProvider implements RoutingProvider {
 
             if (
               typeof step.instruction !== "string" ||
-              typeof step.distance !== "number" ||
-              typeof step.duration !== "number" ||
-              !Array.isArray(coordinate) ||
-              coordinate.length < 2 ||
-              typeof coordinate[0] !== "number" ||
-              typeof coordinate[1] !== "number"
+              !Number.isFinite(step.distance) ||
+              !Number.isFinite(step.duration) ||
+              !isCoordinate(coordinate)
             ) {
               throw this.invalidResponse(
                 "Directions instruction contains invalid maneuver data.",
@@ -98,8 +99,8 @@ export class OpenRouteServiceProvider implements RoutingProvider {
 
             maneuvers.push({
               instruction: step.instruction,
-              distanceMeters: step.distance,
-              durationSeconds: step.duration,
+              distanceMeters: step.distance!,
+              durationSeconds: step.duration!,
               coordinate: [coordinate[0], coordinate[1]],
             });
           }
@@ -107,11 +108,13 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       }
 
       return {
-        distanceMeters: summary.distance,
-        durationSeconds: summary.duration,
+        distanceMeters: summary.distance!,
+        durationSeconds: summary.duration!,
         geometry: geometry as LineString,
         weight:
-          typeof summary.weight === "number" ? summary.weight : undefined,
+          typeof summary.weight === "number" && Number.isFinite(summary.weight)
+            ? summary.weight
+            : undefined,
         maneuvers,
         waypointOrder: feature.properties?.waypoint_order,
       };
@@ -123,49 +126,54 @@ export class OpenRouteServiceProvider implements RoutingProvider {
   async getNearest(query: NearestQuery): Promise<NearestResponse> {
     const request = this.builder.buildNearestRequest(query);
     const data = await this.client.execute<OrsSnapResponse>(request);
+    const locations = data.locations;
 
-    if (!Array.isArray(data.features)) {
-      throw this.invalidResponse("Snap response is missing its features array.");
+    if (
+      !Array.isArray(locations) ||
+      locations.length !== query.coordinates.length
+    ) {
+      throw this.invalidResponse(
+        "Snap response does not contain one location result per input coordinate.",
+      );
     }
 
-    const points = query.coordinates.map((inputCoordinate, sourceIndex) => ({
-      sourceIndex,
-      inputCoordinate,
-      snappedCoordinate: null as Coordinate | null,
-      distanceMeters: null as number | null,
-      streetName: undefined as string | undefined,
-    }));
+    const points: NearestResult[] = locations.map((location, sourceIndex) => {
+      const inputCoordinate = query.coordinates[sourceIndex];
 
-    for (const feature of data.features) {
-      const sourceIndex = feature.properties?.source_id;
-      const geometry = feature.geometry;
-      const coordinates = geometry?.coordinates;
+      if (location === null) {
+        return {
+          sourceIndex,
+          inputCoordinate,
+          snappedCoordinate: null,
+          distanceMeters: null,
+        };
+      }
 
-      if (
-        typeof sourceIndex !== "number" ||
-        !Number.isInteger(sourceIndex) ||
-        sourceIndex < 0 ||
-        sourceIndex >= points.length ||
-        !geometry ||
-        geometry.type !== "Point" ||
-        !Array.isArray(coordinates) ||
-        coordinates.length < 2 ||
-        typeof coordinates[0] !== "number" ||
-        typeof coordinates[1] !== "number"
-      ) {
+      if (!isCoordinate(location.location)) {
         throw this.invalidResponse(
-          "Snap feature cannot be matched to a valid input coordinate.",
+          "Snap result is missing a valid snapped coordinate.",
         );
       }
 
-      points[sourceIndex] = {
+      if (
+        location.snapped_distance !== undefined &&
+        !Number.isFinite(location.snapped_distance)
+      ) {
+        throw this.invalidResponse("Snap result contains an invalid distance.");
+      }
+
+      if (location.name !== undefined && typeof location.name !== "string") {
+        throw this.invalidResponse("Snap result contains an invalid street name.");
+      }
+
+      return {
         sourceIndex,
-        inputCoordinate: query.coordinates[sourceIndex],
-        snappedCoordinate: [coordinates[0], coordinates[1]],
-        distanceMeters: null,
-        streetName: undefined,
+        inputCoordinate,
+        snappedCoordinate: [location.location[0], location.location[1]],
+        distanceMeters: location.snapped_distance ?? null,
+        streetName: location.name,
       };
-    }
+    });
 
     return { provider: this.name, points };
   }
@@ -173,13 +181,14 @@ export class OpenRouteServiceProvider implements RoutingProvider {
   async getMatrix(query: MatrixQuery): Promise<MatrixResponse> {
     const request = this.builder.buildMatrixRequest(query);
     const data = await this.client.execute<OrsMatrixResponse>(request);
+    const size = query.coordinates.length;
 
     if (
-      !this.isNullableNumberMatrix(data.durations) ||
-      !this.isNullableNumberMatrix(data.distances)
+      !isNullableNumberMatrix(data.durations, size) ||
+      !isNullableNumberMatrix(data.distances, size)
     ) {
       throw this.invalidResponse(
-        "Matrix response is missing valid durations or distances.",
+        "Matrix response is missing a valid square durations or distances matrix.",
       );
     }
 
@@ -202,35 +211,18 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       const value = feature.properties?.value;
       const geometry = feature.geometry;
 
-      if (
-        typeof value !== "number" ||
-        !geometry ||
-        (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")
-      ) {
+      if (!Number.isFinite(value) || !isPolygonGeometry(geometry)) {
         throw this.invalidResponse(
           "Isochrone feature is missing a valid value or polygon geometry.",
         );
       }
 
       return {
-        value,
+        value: value!,
         geometry: geometry as Polygon | MultiPolygon,
       };
     });
 
     return { provider: this.name, isochrones };
-  }
-
-  private isNullableNumberMatrix(
-    value: unknown,
-  ): value is (number | null)[][] {
-    return (
-      Array.isArray(value) &&
-      value.every(
-        (row) =>
-          Array.isArray(row) &&
-          row.every((cell) => cell === null || typeof cell === "number"),
-      )
-    );
   }
 }

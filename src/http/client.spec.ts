@@ -98,7 +98,7 @@ describe("HttpClient", () => {
 
   it("maps attempt timeouts to REQUEST_TIMEOUT", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((_url, init) => {
-      return new Promise((_resolve, reject) => {
+      return new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => {
           const error = new Error("timed out");
           error.name = "TimeoutError";

@@ -15,9 +15,11 @@ import {
 
 import { OrsRequestBuilder } from "./builder";
 import { OrsClient } from "./client";
+import { ORS_CAPABILITIES } from "./capabilities";
 
 export class OpenRouteServiceProvider implements RoutingProvider {
   readonly name = "OpenRouteService";
+  readonly capabilities = ORS_CAPABILITIES;
   private builder: OrsRequestBuilder;
   private client: OrsClient;
 

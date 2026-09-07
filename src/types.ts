@@ -1,4 +1,5 @@
 import { LineString, Polygon, MultiPolygon } from "geojson";
+import type { ProviderCapabilities } from "./capabilities";
 
 export type Coordinate = [longitude: number, latitude: number];
 export type ProfileType = "bike" | "hike" | "car";
@@ -114,6 +115,7 @@ export interface IsochroneResponse {
 // ==========================================
 export interface RoutingProvider {
   readonly name: string;
+  readonly capabilities: ProviderCapabilities;
   getRoute(query: RouteQuery): Promise<RouteResponse>;
   getNearest(query: NearestQuery): Promise<NearestResponse>;
   getMatrix(query: MatrixQuery): Promise<MatrixResponse>;

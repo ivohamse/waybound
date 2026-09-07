@@ -158,20 +158,12 @@ export class OpenRouteServiceProvider implements RoutingProvider {
         );
       }
 
-      const distance = feature.properties?.distance;
-      if (distance !== undefined && typeof distance !== "number") {
-        throw this.invalidResponse("Snap feature contains an invalid distance.");
-      }
-
       points[sourceIndex] = {
         sourceIndex,
         inputCoordinate: query.coordinates[sourceIndex],
         snappedCoordinate: [coordinates[0], coordinates[1]],
-        distanceMeters: distance ?? null,
-        streetName:
-          typeof feature.properties?.name === "string"
-            ? feature.properties.name
-            : undefined,
+        distanceMeters: null,
+        streetName: undefined,
       };
     }
 

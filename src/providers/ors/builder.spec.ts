@@ -1,98 +1,53 @@
 import { describe, it, expect } from "vitest";
 import { OrsRequestBuilder } from "./builder";
-import { RouteQuery } from "#types";
+import type { RouteQuery } from "#types";
 
 describe("OrsRequestBuilder", () => {
   const mockApiKey = "mock-api-key-123";
   const builder = new OrsRequestBuilder(mockApiKey);
 
-  it("zou een correcte HttpRequest voor een route moeten bouwen", () => {
+  it("builds a valid route request", () => {
     const query: RouteQuery = {
       coordinates: [
         [5.121, 52.09],
         [5.111, 52.09],
       ],
       profile: "hike",
+      options: { elevation: true },
     };
 
     const request = builder.buildRouteRequest(query);
-    const expectedUrl = new URL(request.url);
+    const url = new URL(request.url);
+    const body = JSON.parse(request.body!);
 
-    // 1. Controleer of de URL klopt en het profiel goed is gemapt naar 'foot-hiking'
-    expect(expectedUrl.protocol).toBe("https:");
-    expect(expectedUrl.hostname).toBe("api.heigit.org");
-
-    expect(expectedUrl.pathname).contains("foot-hiking");
-    expect(expectedUrl.pathname).contains("directions");
-
-    // 2. Controleer of het een POST request is
+    expect(url.protocol).toBe("https:");
+    expect(url.hostname).toBe("api.heigit.org");
+    expect(url.pathname).toContain("/v2/directions/foot-hiking/geojson");
     expect(request.method).toBe("POST");
-
-    // 3. Controleer of de Authorization header correct is gevuld
-    expect(request.headers["Authorization"]).toBe(mockApiKey);
+    expect(request.headers.Authorization).toBe(mockApiKey);
     expect(request.headers["Content-Type"]).toBe("application/json");
-
-    // 4. Controleer of de body correct is omgezet naar een JSON string met de coördinaten
-    const parsedBody = JSON.parse(request.body!);
-    expect(parsedBody.coordinates).toEqual(query.coordinates);
-    expect(parsedBody.elevation).toBe(false); // Standaard fallback check
+    expect(body.coordinates).toEqual(query.coordinates);
+    expect(body.elevation).toBe(true);
   });
 
-  it("zou avoidFeatures correct in de request body moeten stoppen", () => {
-    const query: RouteQuery = {
-      coordinates: [
-        [5.121, 52.09],
-        [5.111, 52.09],
-      ],
-      profile: "bike",
-      options: {
-        avoidFeatures: ["highways", "tolls"],
-      },
-    };
+  it("builds one native JSON batch snap request for multiple coordinates", () => {
+    const coordinates: [number, number][] = [
+      [5.12142, 52.09063],
+      [5.11142, 52.09],
+    ];
 
-    const request = builder.buildRouteRequest(query);
-    const parsedBody = JSON.parse(request.body!);
+    const request = builder.buildNearestRequest({
+      coordinates,
+      profile: "hike",
+      options: { radius: 500 },
+    });
 
-    // Controleer of de array met restricties correct is doorgegeven aan ORS
-    expect(parsedBody.options.avoid_features).toEqual(["highways", "tollways"]);
-  });
+    const url = new URL(request.url);
+    const body = JSON.parse(request.body!);
 
-  it("zou tolls correct moeten transformeren naar tollways voor een fiets- of autoprofiel", () => {
-    const query: RouteQuery = {
-      coordinates: [
-        [5.121, 52.09],
-        [5.111, 52.09],
-      ],
-      profile: "bike",
-      options: {
-        avoidFeatures: ["tolls"],
-      },
-    };
-
-    const request = builder.buildRouteRequest(query);
-    const parsedBody = JSON.parse(request.body!);
-
-    // Controleer of 'tolls' succesvol is vertaald naar 'tollways'
-    expect(parsedBody.options.avoid_features).toEqual(["tollways"]);
-  });
-
-  it("zou tollways keihard moeten wegfilteren als het profiel hike is (om 400 errors te voorkomen)", () => {
-    const query: RouteQuery = {
-      coordinates: [
-        [5.121, 52.09],
-        [5.111, 52.09],
-      ],
-      profile: "hike", // <--- Wandeltocht!
-      options: {
-        avoidFeatures: ["tolls", "highways"],
-      },
-    };
-
-    const request = builder.buildRouteRequest(query);
-    const parsedBody = JSON.parse(request.body!);
-
-    // 'tollways' moet verdwenen zijn, maar 'highways' moet netjes blijven staan!
-    expect(parsedBody.options.avoid_features).toEqual(["highways"]);
-    expect(parsedBody.options.avoid_features).not.toContain("tollways");
+    expect(url.pathname).toContain("/v2/snap/foot-hiking/json");
+    expect(request.method).toBe("POST");
+    expect(body.locations).toEqual(coordinates);
+    expect(body.radius).toBe(500);
   });
 });

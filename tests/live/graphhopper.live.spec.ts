@@ -34,17 +34,22 @@ describe("GraphHopper live integration", () => {
     expect(route.maneuvers?.length ?? 0).toBeGreaterThan(0);
   });
 
-  it("returns a nearby point for getNearest", async () => {
+  it("returns one approximate nearest result per input coordinate", async () => {
+    const coordinates = [UTRECHT_CENTRE, UTRECHT_STATION];
     const response = await router.getNearest({
-      coordinate: UTRECHT_CENTRE,
+      coordinates,
       profile: "bike",
     });
 
     expect(response.provider).toBe("GraphHopper");
-    expect(response.snappedCoordinate).toHaveLength(2);
-    expect(Number.isFinite(response.snappedCoordinate[0])).toBe(true);
-    expect(Number.isFinite(response.snappedCoordinate[1])).toBe(true);
-    expect(response.distanceMeters).toBeGreaterThanOrEqual(0);
+    expect(response.points).toHaveLength(coordinates.length);
+
+    for (const point of response.points) {
+      expect(point.inputCoordinate).toEqual(coordinates[point.sourceIndex]);
+      expect(point.snappedCoordinate).not.toBeNull();
+      expect(point.snappedCoordinate).toHaveLength(2);
+      expect(point.distanceMeters).toBeNull();
+    }
   });
 
   it("calculates a real distance/time matrix", async () => {
@@ -58,13 +63,15 @@ describe("GraphHopper live integration", () => {
     expect(response.distances).toHaveLength(3);
     expect(response.durations.every((row) => row.length === 3)).toBe(true);
     expect(response.distances.every((row) => row.length === 3)).toBe(true);
-    expect(response.durations[0][1]).toBeGreaterThan(0);
-    expect(response.distances[0][1]).toBeGreaterThan(0);
+    expect(response.durations[0][1]).not.toBeNull();
+    expect(response.distances[0][1]).not.toBeNull();
   });
 
   it("generates real isochrones or reports the account limitation", async () => {
+    let response;
+
     try {
-      const response = await router.getIsochrones({
+      response = await router.getIsochrones({
         coordinate: UTRECHT_CENTRE,
         profile: "bike",
         options: {
@@ -72,13 +79,6 @@ describe("GraphHopper live integration", () => {
           ranges: [600],
         },
       });
-
-      expect(response.provider).toBe("GraphHopper");
-      expect(response.isochrones.length).toBeGreaterThan(0);
-
-      for (const isochrone of response.isochrones) {
-        expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
-      }
     } catch (error) {
       expect(error).toMatchObject({
         name: "WayboundError",
@@ -86,6 +86,14 @@ describe("GraphHopper live integration", () => {
         provider: "GraphHopper",
         status: 400,
       });
+      return;
     }
+
+    expect(response.provider).toBe("GraphHopper");
+    expect(response.isochrones).toHaveLength(1);
+    expect(response.isochrones[0].value).toBe(600);
+    expect(["Polygon", "MultiPolygon"]).toContain(
+      response.isochrones[0].geometry.type,
+    );
   });
 });

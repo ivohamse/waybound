@@ -1,59 +1,80 @@
 import { describe, it, expect } from "vitest";
 import { GraphHopperRequestBuilder } from "./builder";
-import { RouteQuery, NearestQuery } from "#types";
+import type { RouteQuery } from "#types";
 
 describe("GraphHopperRequestBuilder", () => {
   const mockApiKey = "gh-api-key-999";
   const builder = new GraphHopperRequestBuilder(mockApiKey);
 
-  it("zou een correcte HttpRequest voor een route moeten bouwen met profile in de body", () => {
+  it("builds a route request with shared route options", () => {
     const query: RouteQuery = {
       coordinates: [
         [5.121, 52.09],
         [5.111, 52.09],
       ],
       profile: "bike",
+      options: {
+        instructions: false,
+        language: "nl",
+        elevation: true,
+      },
     };
 
     const request = builder.buildRouteRequest(query);
+    const url = new URL(request.url);
+    const body = JSON.parse(request.body!);
 
-    const expectedUrl = new URL(request.url);
-
-    // 1. Controleer of de basis-URL klopt en of de API-key als query-parameter in de URL staat
-    expect(expectedUrl.protocol).toBe("https:");
-    expect(expectedUrl.hostname).toBe("graphhopper.com");
-    expect(expectedUrl.searchParams.get("key")).toBe(mockApiKey);
-
+    expect(url.protocol).toBe("https:");
+    expect(url.hostname).toBe("graphhopper.com");
+    expect(url.searchParams.get("key")).toBe(mockApiKey);
     expect(request.method).toBe("POST");
-
-    // 2. Controleer of profile en points_encoded correct in de body zitten (en NIET in de URL)
-    const parsedBody = JSON.parse(request.body!);
-    expect(parsedBody.profile).toBe("bike");
-    expect(parsedBody.points_encoded).toBe(false);
-    expect(parsedBody.points).toEqual(query.coordinates);
+    expect(body.profile).toBe("bike");
+    expect(body.points_encoded).toBe(false);
+    expect(body.points).toEqual(query.coordinates);
+    expect(body.instructions).toBe(false);
+    expect(body.locale).toBe("nl");
+    expect(body.elevation).toBe(true);
   });
 
-  it("zou een correcte Nearest GET request moeten bouwen met omdraaiing van coördinaten (Lat,Lng)", () => {
-    const query: NearestQuery = {
-      coordinate: [5.12142, 52.09063], // [Lng, Lat] conform GeoJSON
+  it("builds one reverse-geocoding request per nearest coordinate", () => {
+    const requests = builder.buildNearestRequests({
+      coordinates: [
+        [5.12142, 52.09063],
+        [5.11142, 52.09],
+      ],
       profile: "hike",
-    };
+    });
 
-    const request = builder.buildNearestRequest(query);
+    expect(requests).toHaveLength(2);
 
-    // GraphHopper verwacht point=Lat,Lng in de URL string voor geocoding/snap
-    const expectedUrl = new URL(request.url);
+    const firstUrl = new URL(requests[0].url);
+    const secondUrl = new URL(requests[1].url);
 
-    expect(expectedUrl.protocol).toBe("https:");
-    expect(expectedUrl.hostname).toBe("graphhopper.com");
-    expect(expectedUrl.searchParams.get("key")).toBe(mockApiKey);
-    expect(expectedUrl.searchParams.get("reverse")).toBe("true");
+    expect(firstUrl.searchParams.get("reverse")).toBe("true");
+    expect(firstUrl.searchParams.get("point")).toBe("52.09063,5.12142");
+    expect(secondUrl.searchParams.get("point")).toBe("52.09,5.11142");
+    expect(firstUrl.searchParams.get("profile")).toBeNull();
+    expect(requests[0].method).toBe("GET");
+  });
 
-    // Cruciale check: Is de volgorde in de URL omgedraaid naar Lat,Lng?
-    expect(expectedUrl.searchParams.get("point")).toBe("52.09063,5.12142");
-    expect(expectedUrl.searchParams.get("profile")).toBe("hike");
+  it("builds one exact-range isochrone request per requested range", () => {
+    const requests = builder.buildIsochroneRequests({
+      coordinate: [5.12142, 52.09063],
+      profile: "bike",
+      options: {
+        rangeType: "time",
+        ranges: [300, 900],
+      },
+    });
 
-    expect(request.method).toBe("GET");
-    expect(request.body).toBeUndefined(); // GET requests hebben geen body
+    expect(requests.map(({ value }) => value)).toEqual([300, 900]);
+
+    const firstUrl = new URL(requests[0].request.url);
+    const secondUrl = new URL(requests[1].request.url);
+
+    expect(firstUrl.searchParams.get("profile")).toBe("bike");
+    expect(firstUrl.searchParams.get("buckets")).toBe("1");
+    expect(firstUrl.searchParams.get("time_limit")).toBe("300");
+    expect(secondUrl.searchParams.get("time_limit")).toBe("900");
   });
 });

@@ -1,12 +1,10 @@
 import {
   ProfileType,
-  RouteFeature,
   RouteQuery,
   HttpRequest,
   NearestQuery,
   MatrixQuery,
   IsochroneQuery,
-  AvoidFeatureType,
 } from "#types";
 
 export class OrsRequestBuilder {
@@ -26,24 +24,6 @@ export class OrsRequestBuilder {
     return profileMap[profile];
   }
 
-  /**
-   * Vertaalt waybound restricties naar het specifieke ORS v2 dialect
-   */
-  private mapAvoidFeature(feature: AvoidFeatureType): string {
-    const featureMap: Record<AvoidFeatureType, string> = {
-      tolls: "tollways",
-      highways: "highways",
-      ferries: "ferries",
-    };
-    return featureMap[feature];
-  }
-
-  private buildUrl(feature: RouteFeature, profile: ProfileType): string {
-    const mappedProfile = this.mapProfile(profile);
-    const featurePath = feature === "snap" ? "snap" : "directions";
-    return `${this.baseUrl}/v2/${featurePath}/${mappedProfile}/geojson`;
-  }
-
   private getBaseHeaders(): Record<string, string> {
     return {
       Authorization: this.apiKey,
@@ -57,45 +37,33 @@ export class OrsRequestBuilder {
     coordinates,
     profile,
   }: RouteQuery): HttpRequest {
-    const url = this.buildUrl("directions", profile);
-
-    const requestBody: Record<string, unknown> = {
-      coordinates,
-      elevation: options?.elevation ?? false,
-      instructions: options?.instructions ?? true,
-      instructions_format: "text",
-      language: options?.language,
-    };
-
-    if (options) {
-      const { avoidFeatures, optimize } = options;
-      const features = avoidFeatures ?? [];
-
-      requestBody.options = {
-        optimized: optimize,
-        avoid_features: features
-          .map((f) => this.mapAvoidFeature(f))
-          .filter((f) => !(profile === "hike" && f === "tollways")),
-      };
-    }
-
-    return {
-      url,
-      method: "POST",
-      headers: this.getBaseHeaders(),
-      body: JSON.stringify(requestBody),
-    };
-  }
-
-  public buildNearestRequest(query: NearestQuery): HttpRequest {
-    const url = this.buildUrl("snap", query.profile);
+    const mappedProfile = this.mapProfile(profile);
+    const url = `${this.baseUrl}/v2/directions/${mappedProfile}/geojson`;
 
     return {
       url,
       method: "POST",
       headers: this.getBaseHeaders(),
       body: JSON.stringify({
-        locations: [query.coordinate],
+        coordinates,
+        elevation: options?.elevation ?? false,
+        instructions: options?.instructions ?? true,
+        instructions_format: "text",
+        language: options?.language,
+      }),
+    };
+  }
+
+  public buildNearestRequest(query: NearestQuery): HttpRequest {
+    const mappedProfile = this.mapProfile(query.profile);
+    const url = `${this.baseUrl}/v2/snap/${mappedProfile}/json`;
+
+    return {
+      url,
+      method: "POST",
+      headers: this.getBaseHeaders(),
+      body: JSON.stringify({
+        locations: query.coordinates,
         radius: query.options?.radius ?? 300,
       }),
     };
@@ -105,16 +73,14 @@ export class OrsRequestBuilder {
     const mappedProfile = this.mapProfile(query.profile);
     const url = `${this.baseUrl}/v2/matrix/${mappedProfile}`;
 
-    const requestBody = {
-      locations: query.coordinates,
-      metrics: ["duration", "distance"],
-    };
-
     return {
       url,
       method: "POST",
       headers: this.getBaseHeaders(),
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        locations: query.coordinates,
+        metrics: ["duration", "distance"],
+      }),
     };
   }
 
@@ -122,17 +88,15 @@ export class OrsRequestBuilder {
     const mappedProfile = this.mapProfile(query.profile);
     const url = `${this.baseUrl}/v2/isochrones/${mappedProfile}`;
 
-    const requestBody = {
-      locations: [query.coordinate],
-      range: query.options.ranges,
-      range_type: query.options.rangeType === "distance" ? "distance" : "time",
-    };
-
     return {
       url,
       method: "POST",
       headers: this.getBaseHeaders(),
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        locations: [query.coordinate],
+        range: query.options.ranges,
+        range_type: query.options.rangeType === "distance" ? "distance" : "time",
+      }),
     };
   }
 }

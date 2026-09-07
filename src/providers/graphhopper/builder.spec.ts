@@ -51,7 +51,7 @@ describe("GraphHopperRequestBuilder", () => {
 
     // Cruciale check: Is de volgorde in de URL omgedraaid naar Lat,Lng?
     expect(expectedUrl.searchParams.get("point")).toBe("52.09063,5.12142");
-    expect(expectedUrl.searchParams.get("profile")).toBe("hike");
+    expect(expectedUrl.searchParams.get("profile")).toBe("foot");
 
     expect(request.method).toBe("GET");
     expect(request.body).toBeUndefined(); // GET requests hebben geen body

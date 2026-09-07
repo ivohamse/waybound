@@ -30,6 +30,8 @@ export class OpenRouteServiceProvider implements RoutingProvider {
     // A. Laat de builder het HTTP verzoek uittekenen
     const request = this.builder.buildRouteRequest(query);
 
+    console.log("ORS request:", request.method, request.url, request.body);
+
     // B. Voer het verzoek uit via de client-laag
     const data = await this.client.execute(request);
 

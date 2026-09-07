@@ -1,5 +1,5 @@
 import type { HttpRequest } from "#types";
-import { WayboundError } from "../errors";
+import { WayboundError } from "#core";
 import {
   getRetryDelay,
   isRetryableStatus,

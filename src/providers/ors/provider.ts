@@ -1,5 +1,5 @@
 import type { LineString, MultiPolygon, Polygon } from "geojson";
-import {
+import type {
   RoutingProvider,
   RouteQuery,
   RouteResponse,
@@ -12,8 +12,8 @@ import {
   MatrixResponse,
   Maneuver,
 } from "#types";
-import { WayboundError } from "../../errors";
-import { HttpClient, type HttpClientOptions } from "../../http/client";
+import { WayboundError } from "#core";
+import { HttpClient, type HttpClientOptions } from "#http";
 import {
   isCoordinate,
   isLineString,

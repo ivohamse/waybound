@@ -1,5 +1,5 @@
 import type { LineString, MultiPolygon, Polygon } from "geojson";
-import {
+import type {
   RoutingProvider,
   RouteQuery,
   RouteResponse,
@@ -14,8 +14,8 @@ import {
   Maneuver,
   Coordinate,
 } from "#types";
-import { WayboundError } from "../../errors";
-import { HttpClient, type HttpClientOptions } from "../../http/client";
+import { WayboundError } from "#core";
+import { HttpClient, type HttpClientOptions } from "#http";
 import {
   isCoordinate,
   isLineString,
@@ -124,8 +124,6 @@ export class GraphHopperProvider implements RoutingProvider {
     const requests = this.builder.buildNearestRequests(query);
     const points: NearestResult[] = [];
 
-    // Reverse geocoding is an approximation of road-network snapping. Requests
-    // are intentionally executed sequentially to avoid a burst of API calls.
     for (let sourceIndex = 0; sourceIndex < requests.length; sourceIndex++) {
       const data = await this.client.execute<GraphHopperGeocodeResponse>(
         requests[sourceIndex],

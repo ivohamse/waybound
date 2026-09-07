@@ -138,19 +138,24 @@ export class GraphHopperProvider implements RoutingProvider {
       }
 
       const hit = data.hits[0];
-      const candidate =
-        hit?.point && [hit.point.lng, hit.point.lat];
+      let snappedCoordinate: Coordinate | null = null;
 
-      if (hit && !isCoordinate(candidate)) {
-        throw this.invalidResponse(
-          "Reverse-geocoding hit is missing a valid point coordinate.",
-        );
+      if (hit) {
+        const candidate = [hit.point?.lng, hit.point?.lat];
+
+        if (!isCoordinate(candidate)) {
+          throw this.invalidResponse(
+            "Reverse-geocoding hit is missing a valid point coordinate.",
+          );
+        }
+
+        snappedCoordinate = candidate;
       }
 
       points.push({
         sourceIndex,
         inputCoordinate: query.coordinates[sourceIndex],
-        snappedCoordinate: hit ? [candidate![0], candidate![1]] : null,
+        snappedCoordinate,
         distanceMeters: null,
         streetName:
           typeof hit?.name === "string"

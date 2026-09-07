@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { OpenRouteServiceProvider } from "./index";
-import { OrsClient } from "./client"; // Importeer de echte clientklasse
+import { HttpClient } from "../../http/client";
 import { RouteQuery } from "#types";
 
 describe("OpenRouteServiceProvider", () => {
@@ -33,9 +33,8 @@ describe("OpenRouteServiceProvider", () => {
       ],
     };
 
-    // KOGELVRIJE MOCK: We kapen de execute methode direct op het 'prototype' van de klasse
     const executeSpy = vi
-      .spyOn(OrsClient.prototype, "execute")
+      .spyOn(HttpClient.prototype, "execute")
       .mockResolvedValue(mockOrsRouteResponse);
 
     const query: RouteQuery = {
@@ -65,7 +64,7 @@ describe("OpenRouteServiceProvider", () => {
   });
 
   it("zou een fout moeten gooien als de server een lege feature collectie stuurt", async () => {
-    vi.spyOn(OrsClient.prototype, "execute").mockResolvedValue({
+    vi.spyOn(HttpClient.prototype, "execute").mockResolvedValue({
       features: [],
     });
 
@@ -95,7 +94,6 @@ describe("OpenRouteServiceProvider", () => {
           },
           properties: {
             summary: { distance: 1000, duration: 60, weight: 10 },
-            // Simulatie van de turn-by-turn data van ORS
             segments: [
               {
                 steps: [
@@ -113,7 +111,7 @@ describe("OpenRouteServiceProvider", () => {
       ],
     };
 
-    vi.spyOn(OrsClient.prototype, "execute").mockResolvedValue(
+    vi.spyOn(HttpClient.prototype, "execute").mockResolvedValue(
       mockOrsRouteResponse,
     );
 
@@ -129,13 +127,12 @@ describe("OpenRouteServiceProvider", () => {
     const response = await provider.getRoute(query);
     const route = response.routes[0];
 
-    // Controleer of de maneuvers succesvol zijn meegeleverd en geformatteerd
     expect(route.maneuvers).toBeDefined();
     expect(route.maneuvers).toHaveLength(1);
     expect(route.maneuvers![0].instruction).toBe(
       "Sla rechtsaf de Donkeregaard op",
     );
     expect(route.maneuvers![0].distanceMeters).toBe(200);
-    expect(route.maneuvers![0].coordinate).toEqual([5.12, 52.09]); // Eerste waypoint index check
+    expect(route.maneuvers![0].coordinate).toEqual([5.12, 52.09]);
   });
 });

@@ -68,7 +68,7 @@ export class GraphHopperRequestBuilder {
       points_encoded: false,
       instructions: query.options?.instructions ?? true,
       locale: query.options?.language,
-      optimize: query.options?.optimize,
+      elevation: query.options?.elevation ?? false,
     };
 
     return {

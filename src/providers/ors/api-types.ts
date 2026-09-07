@@ -36,8 +36,6 @@ export interface OrsSnapFeature {
   geometry?: Point;
   properties?: {
     source_id?: number;
-    distance?: number;
-    name?: string;
   };
 }
 

@@ -58,37 +58,42 @@ describe("OpenRouteService live integration", () => {
       expect(point.inputCoordinate).toEqual(coordinates[index]);
       expect(point.snappedCoordinate).not.toBeNull();
       expect(point.snappedCoordinate).toHaveLength(2);
-      expect(point.distanceMeters).toBeNull();
-      expect(point.streetName).toBeUndefined();
+      expect(point.distanceMeters).not.toBeNull();
+      expect(point.distanceMeters).toBeGreaterThanOrEqual(0);
     }
   });
 
   it("calculates a real distance/time matrix or reports a typed timeout", async () => {
+    let response;
+
     try {
-      const response = await diagnosticRouter.getMatrix({
+      response = await diagnosticRouter.getMatrix({
         coordinates: [UTRECHT_CENTRE, UTRECHT_STATION, UTRECHT_MUSEUM],
         profile: "bike",
       });
-
-      expect(response.provider).toBe("OpenRouteService");
-      expect(response.durations).toHaveLength(3);
-      expect(response.distances).toHaveLength(3);
-      expect(response.durations.every((row) => row.length === 3)).toBe(true);
-      expect(response.distances.every((row) => row.length === 3)).toBe(true);
-      expect(response.durations[0][1]).not.toBeNull();
-      expect(response.distances[0][1]).not.toBeNull();
     } catch (error) {
       expect(error).toMatchObject({
         name: "WayboundError",
         code: "REQUEST_TIMEOUT",
         provider: "OpenRouteService",
       });
+      return;
     }
+
+    expect(response.provider).toBe("OpenRouteService");
+    expect(response.durations).toHaveLength(3);
+    expect(response.distances).toHaveLength(3);
+    expect(response.durations.every((row) => row.length === 3)).toBe(true);
+    expect(response.distances.every((row) => row.length === 3)).toBe(true);
+    expect(response.durations[0][1]).not.toBeNull();
+    expect(response.distances[0][1]).not.toBeNull();
   });
 
   it("generates real isochrones or reports a typed timeout", async () => {
+    let response;
+
     try {
-      const response = await diagnosticRouter.getIsochrones({
+      response = await diagnosticRouter.getIsochrones({
         coordinate: UTRECHT_CENTRE,
         profile: "bike",
         options: {
@@ -96,20 +101,21 @@ describe("OpenRouteService live integration", () => {
           ranges: [300, 600],
         },
       });
-
-      expect(response.provider).toBe("OpenRouteService");
-      expect(response.isochrones.length).toBeGreaterThan(0);
-
-      for (const isochrone of response.isochrones) {
-        expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
-        expect(isochrone.value).toBeGreaterThan(0);
-      }
     } catch (error) {
       expect(error).toMatchObject({
         name: "WayboundError",
         code: "REQUEST_TIMEOUT",
         provider: "OpenRouteService",
       });
+      return;
+    }
+
+    expect(response.provider).toBe("OpenRouteService");
+    expect(response.isochrones.length).toBeGreaterThan(0);
+
+    for (const isochrone of response.isochrones) {
+      expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
+      expect(isochrone.value).toBeGreaterThan(0);
     }
   });
 });

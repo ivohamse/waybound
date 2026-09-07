@@ -91,16 +91,18 @@ describe("OpenRouteServiceProvider", () => {
     ]);
   });
 
-  it("maps ORS batch snap features by source_id and preserves omitted inputs", async () => {
+  it("maps ORS JSON snap results one-to-one to input coordinates", async () => {
     vi.spyOn(HttpClient.prototype, "execute").mockResolvedValue({
-      features: [
+      locations: [
         {
-          geometry: { type: "Point", coordinates: [5.1215, 52.0907] },
-          properties: { source_id: 0 },
+          location: [5.1215, 52.0907],
+          name: "Street A",
+          snapped_distance: 7.5,
         },
+        null,
         {
-          geometry: { type: "Point", coordinates: [5.1281, 52.0851] },
-          properties: { source_id: 2 },
+          location: [5.1281, 52.0851],
+          snapped_distance: 4,
         },
       ],
     });
@@ -121,21 +123,20 @@ describe("OpenRouteServiceProvider", () => {
       sourceIndex: 0,
       inputCoordinate: coordinates[0],
       snappedCoordinate: [5.1215, 52.0907],
-      distanceMeters: null,
-      streetName: undefined,
+      distanceMeters: 7.5,
+      streetName: "Street A",
     });
     expect(response.points[1]).toEqual({
       sourceIndex: 1,
       inputCoordinate: coordinates[1],
       snappedCoordinate: null,
       distanceMeters: null,
-      streetName: undefined,
     });
     expect(response.points[2]).toEqual({
       sourceIndex: 2,
       inputCoordinate: coordinates[2],
       snappedCoordinate: [5.1281, 52.0851],
-      distanceMeters: null,
+      distanceMeters: 4,
       streetName: undefined,
     });
   });

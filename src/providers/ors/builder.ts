@@ -59,8 +59,8 @@ export class OrsRequestBuilder {
   }: RouteQuery): HttpRequest {
     const url = this.buildUrl("directions", profile);
 
-    const requestBody: Record<string, any> = {
-      coordinates: coordinates,
+    const requestBody: Record<string, unknown> = {
+      coordinates,
       elevation: options?.elevation ?? false,
       instructions: options?.instructions ?? true,
       instructions_format: "text",
@@ -78,8 +78,6 @@ export class OrsRequestBuilder {
           .filter((f) => !(profile === "hike" && f === "tollways")),
       };
     }
-
-    console.log(JSON.stringify(requestBody));
 
     return {
       url,
@@ -103,17 +101,12 @@ export class OrsRequestBuilder {
     };
   }
 
-  /**
-   * NIEUW IN v0.2.0: Bouwt het HTTP verzoek voor de Matrix API (POST /v2/matrix/{profile})
-   */
   public buildMatrixRequest(query: MatrixQuery): HttpRequest {
     const mappedProfile = this.mapProfile(query.profile);
-    // Matrix endpoint heeft geen /geojson extensie
     const url = `${this.baseUrl}/v2/matrix/${mappedProfile}`;
 
-    const requestBody: Record<string, any> = {
+    const requestBody = {
       locations: query.coordinates,
-      // We vragen expliciet zowel reistijden als afstanden op
       metrics: ["duration", "distance"],
     };
 
@@ -125,16 +118,13 @@ export class OrsRequestBuilder {
     };
   }
 
-  /**
-   * NIEUW IN v0.2.0: Bouwt het HTTP verzoek voor Isochronen (POST /v2/isochrones/{profile})
-   */
   public buildIsochroneRequest(query: IsochroneQuery): HttpRequest {
     const mappedProfile = this.mapProfile(query.profile);
     const url = `${this.baseUrl}/v2/isochrones/${mappedProfile}`;
 
-    const requestBody: Record<string, any> = {
+    const requestBody = {
       locations: [query.coordinate],
-      range: query.options.ranges, // Bijv. [900, 1800] (15 en 30 minuten)
+      range: query.options.ranges,
       range_type: query.options.rangeType === "distance" ? "distance" : "time",
     };
 

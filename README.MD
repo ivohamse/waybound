@@ -4,7 +4,7 @@ A unified, multi-provider routing and geospatial engine for TypeScript and Node.
 
 `waybound` wraps heavy-duty routing providers (like OpenRouteService and GraphHopper) behind a single, consistent, type-safe API. It automatically handles data transformations into clean **GeoJSON**, respects strict server guidelines, and features built-in **HTTP 429 (Too Many Requests) auto-retry handling** with jittered exponential backoff.
 
-> 📦 **Status: v0.3.1 (Beta - Patch Pack)** - Core routing, advanced matrix computations, isochrone generation, and turn-by-turn maneuvers are fully operational under a 100% successful unit test harness.
+> 📦 **Status: v0.3.2 (Beta - Patch Pack)** - Core routing, advanced matrix computations, isochrone generation, and turn-by-turn maneuvers are fully operational under a 100% successful unit test harness.
 
 ## Features
 

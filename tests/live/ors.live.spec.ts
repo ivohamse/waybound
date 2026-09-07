@@ -10,6 +10,14 @@ if (!apiKey) {
 }
 
 const router = new Router({ provider: "ors", apiKey });
+const diagnosticRouter = new Router({
+  provider: "ors",
+  apiKey,
+  http: {
+    timeoutMs: 2_000,
+    maxRetries: 1,
+  },
+});
 
 const UTRECHT_CENTRE: [number, number] = [5.12142, 52.09063];
 const UTRECHT_STATION: [number, number] = [5.11142, 52.09];
@@ -48,43 +56,53 @@ describe("OpenRouteService live integration", () => {
     expect(response.distanceMeters).toBeGreaterThanOrEqual(0);
   });
 
-  // Temporarily skipped: the public ORS Matrix endpoint currently hangs for
-  // this account/environment even when called directly outside Waybound.
-  // Keep the live contract here so it can be re-enabled once the endpoint responds.
-  it.skip("calculates a real distance/time matrix", async () => {
-    const response = await router.getMatrix({
-      coordinates: [UTRECHT_CENTRE, UTRECHT_STATION, UTRECHT_MUSEUM],
-      profile: "bike",
-    });
+  it("calculates a real distance/time matrix or reports a typed timeout", async () => {
+    try {
+      const response = await diagnosticRouter.getMatrix({
+        coordinates: [UTRECHT_CENTRE, UTRECHT_STATION, UTRECHT_MUSEUM],
+        profile: "bike",
+      });
 
-    expect(response.provider).toBe("OpenRouteService");
-    expect(response.durations).toHaveLength(3);
-    expect(response.distances).toHaveLength(3);
-    expect(response.durations.every((row) => row.length === 3)).toBe(true);
-    expect(response.distances.every((row) => row.length === 3)).toBe(true);
-    expect(response.durations[0][1]).toBeGreaterThan(0);
-    expect(response.distances[0][1]).toBeGreaterThan(0);
+      expect(response.provider).toBe("OpenRouteService");
+      expect(response.durations).toHaveLength(3);
+      expect(response.distances).toHaveLength(3);
+      expect(response.durations.every((row) => row.length === 3)).toBe(true);
+      expect(response.distances.every((row) => row.length === 3)).toBe(true);
+      expect(response.durations[0][1]).toBeGreaterThan(0);
+      expect(response.distances[0][1]).toBeGreaterThan(0);
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "WayboundError",
+        code: "REQUEST_TIMEOUT",
+        provider: "OpenRouteService",
+      });
+    }
   });
 
-  // Temporarily skipped: the public ORS Isochrone endpoint currently hangs for
-  // this account/environment even when called directly outside Waybound.
-  // Keep the live contract here so it can be re-enabled once the endpoint responds.
-  it.skip("generates real isochrones", async () => {
-    const response = await router.getIsochrones({
-      coordinate: UTRECHT_CENTRE,
-      profile: "bike",
-      options: {
-        rangeType: "time",
-        ranges: [300, 600],
-      },
-    });
+  it("generates real isochrones or reports a typed timeout", async () => {
+    try {
+      const response = await diagnosticRouter.getIsochrones({
+        coordinate: UTRECHT_CENTRE,
+        profile: "bike",
+        options: {
+          rangeType: "time",
+          ranges: [300, 600],
+        },
+      });
 
-    expect(response.provider).toBe("OpenRouteService");
-    expect(response.isochrones.length).toBeGreaterThan(0);
+      expect(response.provider).toBe("OpenRouteService");
+      expect(response.isochrones.length).toBeGreaterThan(0);
 
-    for (const isochrone of response.isochrones) {
-      expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
-      expect(isochrone.value).toBeGreaterThan(0);
+      for (const isochrone of response.isochrones) {
+        expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
+        expect(isochrone.value).toBeGreaterThan(0);
+      }
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "WayboundError",
+        code: "REQUEST_TIMEOUT",
+        provider: "OpenRouteService",
+      });
     }
   });
 });

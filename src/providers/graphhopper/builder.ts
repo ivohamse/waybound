@@ -19,7 +19,7 @@ export class GraphHopperRequestBuilder {
   private mapProfile(profile: ProfileType): string {
     const profileMap: Record<ProfileType, string> = {
       bike: "bike",
-      hike: "foot",
+      hike: "hike",
       car: "car",
     };
     return profileMap[profile];
@@ -35,10 +35,6 @@ export class GraphHopperRequestBuilder {
     return featureMap[feature];
   }
 
-  /**
-   * INTERNE URL BUILDER
-   * Voegt altijd de verplichte API-key toe aan de query parameters.
-   */
   private buildUrl(
     feature: RouteFeature,
     queryParams?: Record<string, string | number | boolean>,
@@ -46,7 +42,6 @@ export class GraphHopperRequestBuilder {
     const endpoint = this.mapFeatureEndpoint(feature);
     const urlObj = new URL(`${this.baseUrl}/${endpoint}`);
 
-    // De API-sleutel is ALTIJD verplicht in de URL string voor GraphHopper
     urlObj.searchParams.append("key", this.apiKey);
 
     if (queryParams) {
@@ -60,9 +55,6 @@ export class GraphHopperRequestBuilder {
     return urlObj.toString();
   }
 
-  /**
-   * Bouwt het HTTP verzoek voor routeberekening (POST /route)
-   */
   public buildRouteRequest(query: RouteQuery): HttpRequest {
     const url = this.buildUrl("directions");
 
@@ -90,15 +82,12 @@ export class GraphHopperRequestBuilder {
     };
   }
 
-  /**
-   * Bouwt het HTTP verzoek voor snapping/reverse geocoding (GET /geocode)
-   */
   public buildNearestRequest(query: NearestQuery): HttpRequest {
     const [lng, lat] = query.coordinate;
 
     const url = this.buildUrl("snap", {
       reverse: "true",
-      point: `${lat},${lng}`, // GraphHopper verwacht 'lat,lng'
+      point: `${lat},${lng}`,
       provider: "default",
       profile: this.mapProfile(query.profile),
       locale: query.options?.language || "en",
@@ -107,20 +96,16 @@ export class GraphHopperRequestBuilder {
     return {
       url,
       method: "GET",
-      headers: {}, // Geen content-type of body nodig voor deze GET-actie
+      headers: {},
     };
   }
 
-  /**
-   * NIEUW IN v0.2.0: Bouwt het HTTP verzoek voor de GraphHopper Matrix API (POST /api/1/matrix)
-   */
   public buildMatrixRequest(query: MatrixQuery): HttpRequest {
     const url = this.buildUrl("matrix");
 
     const requestBody: Record<string, any> = {
       points: query.coordinates,
       profile: this.mapProfile(query.profile),
-      // We vragen expliciet reistijden (times) en afstanden op
       out_arrays: ["times", "distances", "weights"],
     };
 
@@ -132,13 +117,9 @@ export class GraphHopperRequestBuilder {
     };
   }
 
-  /**
-   * NIEUW IN v0.2.0: Bouwt het HTTP verzoek voor Isochronen (GET /isochrone)
-   */
   public buildIsochroneRequest(query: IsochroneQuery): HttpRequest {
     const [lng, lat] = query.coordinate;
 
-    // We pakken de eerste range limiet uit de array conform GraphHopper GET limitaties
     const limitValue = query.options.ranges?.[0] ?? 900;
     const isDistance = query.options.rangeType === "distance";
 
@@ -148,9 +129,9 @@ export class GraphHopperRequestBuilder {
     };
 
     if (isDistance) {
-      urlParams.distance_limit = limitValue; // in meters
+      urlParams.distance_limit = limitValue;
     } else {
-      urlParams.time_limit = limitValue; // in seconden
+      urlParams.time_limit = limitValue;
     }
 
     const url = this.buildUrl("isochrones", urlParams);

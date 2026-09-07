@@ -16,6 +16,12 @@ import {
 } from "#types";
 import { WayboundError } from "../../errors";
 import { HttpClient, type HttpClientOptions } from "../../http/client";
+import {
+  isCoordinate,
+  isLineString,
+  isNullableNumberMatrix,
+  isPolygonGeometry,
+} from "../validation";
 import { GraphHopperRequestBuilder } from "./builder";
 import { GRAPHHOPPER_CAPABILITIES } from "./capabilities";
 import type {
@@ -57,11 +63,9 @@ export class GraphHopperProvider implements RoutingProvider {
       const geometry = path.points;
 
       if (
-        typeof path.distance !== "number" ||
-        typeof path.time !== "number" ||
-        !geometry ||
-        geometry.type !== "LineString" ||
-        !Array.isArray(geometry.coordinates)
+        !Number.isFinite(path.distance) ||
+        !Number.isFinite(path.time) ||
+        !isLineString(geometry)
       ) {
         throw this.invalidResponse(
           "Routing path is missing required distance, time or geometry fields.",
@@ -80,12 +84,9 @@ export class GraphHopperProvider implements RoutingProvider {
 
           if (
             typeof instruction.text !== "string" ||
-            typeof instruction.distance !== "number" ||
-            typeof instruction.time !== "number" ||
-            !Array.isArray(coordinate) ||
-            coordinate.length < 2 ||
-            typeof coordinate[0] !== "number" ||
-            typeof coordinate[1] !== "number"
+            !Number.isFinite(instruction.distance) ||
+            !Number.isFinite(instruction.time) ||
+            !isCoordinate(coordinate)
           ) {
             throw this.invalidResponse(
               "Routing instruction contains invalid maneuver data.",
@@ -94,18 +95,21 @@ export class GraphHopperProvider implements RoutingProvider {
 
           return {
             instruction: instruction.text,
-            distanceMeters: instruction.distance,
-            durationSeconds: instruction.time / 1000,
+            distanceMeters: instruction.distance!,
+            durationSeconds: instruction.time! / 1000,
             coordinate: [coordinate[0], coordinate[1]] as Coordinate,
           };
         });
       }
 
       return {
-        distanceMeters: path.distance,
-        durationSeconds: path.time / 1000,
+        distanceMeters: path.distance!,
+        durationSeconds: path.time! / 1000,
         geometry: geometry as LineString,
-        weight: typeof path.weight === "number" ? path.weight : undefined,
+        weight:
+          typeof path.weight === "number" && Number.isFinite(path.weight)
+            ? path.weight
+            : undefined,
         maneuvers,
         waypointOrder: Array.isArray(path.points_order)
           ? path.points_order
@@ -134,10 +138,10 @@ export class GraphHopperProvider implements RoutingProvider {
       }
 
       const hit = data.hits[0];
-      const lat = hit?.point?.lat;
-      const lng = hit?.point?.lng;
+      const candidate =
+        hit?.point && [hit.point.lng, hit.point.lat];
 
-      if (hit && (typeof lat !== "number" || typeof lng !== "number")) {
+      if (hit && !isCoordinate(candidate)) {
         throw this.invalidResponse(
           "Reverse-geocoding hit is missing a valid point coordinate.",
         );
@@ -146,10 +150,7 @@ export class GraphHopperProvider implements RoutingProvider {
       points.push({
         sourceIndex,
         inputCoordinate: query.coordinates[sourceIndex],
-        snappedCoordinate:
-          typeof lng === "number" && typeof lat === "number"
-            ? [lng, lat]
-            : null,
+        snappedCoordinate: hit ? [candidate![0], candidate![1]] : null,
         distanceMeters: null,
         streetName:
           typeof hit?.name === "string"
@@ -166,13 +167,14 @@ export class GraphHopperProvider implements RoutingProvider {
   async getMatrix(query: MatrixQuery): Promise<MatrixResponse> {
     const request = this.builder.buildMatrixRequest(query);
     const data = await this.client.execute<GraphHopperMatrixResponse>(request);
+    const size = query.coordinates.length;
 
     if (
-      !this.isNullableNumberMatrix(data.times) ||
-      !this.isNullableNumberMatrix(data.distances)
+      !isNullableNumberMatrix(data.times, size) ||
+      !isNullableNumberMatrix(data.distances, size)
     ) {
       throw this.invalidResponse(
-        "Matrix response is missing valid times or distances.",
+        "Matrix response is missing a valid square times or distances matrix.",
       );
     }
 
@@ -196,13 +198,9 @@ export class GraphHopperProvider implements RoutingProvider {
         throw this.invalidResponse("Isochrone response contains no polygons.");
       }
 
-      const polygon = data.polygons[0];
-      const geometry = polygon.geometry;
+      const geometry = data.polygons[0].geometry;
 
-      if (
-        !geometry ||
-        (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")
-      ) {
+      if (!isPolygonGeometry(geometry)) {
         throw this.invalidResponse(
           "Isochrone response contains invalid polygon geometry.",
         );
@@ -215,18 +213,5 @@ export class GraphHopperProvider implements RoutingProvider {
     }
 
     return { provider: this.name, isochrones };
-  }
-
-  private isNullableNumberMatrix(
-    value: unknown,
-  ): value is (number | null)[][] {
-    return (
-      Array.isArray(value) &&
-      value.every(
-        (row) =>
-          Array.isArray(row) &&
-          row.every((cell) => cell === null || typeof cell === "number"),
-      )
-    );
   }
 }

@@ -5,8 +5,10 @@ import {
   RouteResponse,
   NearestQuery,
   NearestResponse,
+  NearestResult,
   IsochroneQuery,
   IsochroneResponse,
+  IsochroneResult,
   MatrixQuery,
   MatrixResponse,
   Maneuver,
@@ -116,7 +118,7 @@ export class GraphHopperProvider implements RoutingProvider {
 
   async getNearest(query: NearestQuery): Promise<NearestResponse> {
     const requests = this.builder.buildNearestRequests(query);
-    const points = [];
+    const points: NearestResult[] = [];
 
     // Reverse geocoding is an approximation of road-network snapping. Requests
     // are intentionally executed sequentially to avoid a burst of API calls.
@@ -146,7 +148,7 @@ export class GraphHopperProvider implements RoutingProvider {
         inputCoordinate: query.coordinates[sourceIndex],
         snappedCoordinate:
           typeof lng === "number" && typeof lat === "number"
-            ? ([lng, lat] as Coordinate)
+            ? [lng, lat]
             : null,
         distanceMeters: null,
         streetName:
@@ -183,7 +185,7 @@ export class GraphHopperProvider implements RoutingProvider {
 
   async getIsochrones(query: IsochroneQuery): Promise<IsochroneResponse> {
     const requests = this.builder.buildIsochroneRequests(query);
-    const isochrones = [];
+    const isochrones: IsochroneResult[] = [];
 
     for (const { request, value } of requests) {
       const data = await this.client.execute<GraphHopperIsochroneResponse>(

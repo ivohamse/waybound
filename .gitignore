@@ -22,6 +22,11 @@ Thumbs.db
 .vscode/
 .idea/
 
-# 6. Test & Dekkingsrapporten (Vitest)
+# 6. Omgevingsvariabelen
+.env
+.env.*
+!.env.example
+
+# 7. Test & Dekkingsrapporten (Vitest)
 coverage/
 *.log

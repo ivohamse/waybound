@@ -28,8 +28,8 @@
     "build": "tsup && tsc --emitDeclarationOnly --declaration --outDir dist",
     "dev": "tsup --watch",
     "test": "vitest run",
-    "test:unit": "vitest run",
     "test:watch": "vitest",
+    "test:live": "vitest run --config vitest.live.config.ts",
     "yalc:push": "npm run build && yalc push"
   },
   "keywords": [
@@ -45,12 +45,16 @@
   "license": "MIT",
   "devDependencies": {
     "@types/geojson": "latest",
-    "tsup": "^8.5.1",
-    "tsx": "^4.23.13",
+    "@types/node": "^26.5.0",
+    "tsup": "latest",
+    "tsx": "latest",
     "typescript": "latest",
-    "vitest": "^5.0.0"
+    "vitest": "latest"
   },
   "overrides": {
     "esbuild": "latest"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }

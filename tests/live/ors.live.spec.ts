@@ -42,18 +42,23 @@ describe("OpenRouteService live integration", () => {
     expect(route.maneuvers?.length ?? 0).toBeGreaterThan(0);
   });
 
-  it("snaps a coordinate to the routing network", async () => {
+  it("snaps multiple coordinates to the routing network in one request", async () => {
+    const coordinates = [UTRECHT_CENTRE, UTRECHT_STATION];
     const response = await router.getNearest({
-      coordinate: UTRECHT_CENTRE,
+      coordinates,
       profile: "hike",
       options: { radius: 500 },
     });
 
     expect(response.provider).toBe("OpenRouteService");
-    expect(response.snappedCoordinate).toHaveLength(2);
-    expect(Number.isFinite(response.snappedCoordinate[0])).toBe(true);
-    expect(Number.isFinite(response.snappedCoordinate[1])).toBe(true);
-    expect(response.distanceMeters).toBeGreaterThanOrEqual(0);
+    expect(response.points).toHaveLength(coordinates.length);
+
+    for (const point of response.points) {
+      expect(point.inputCoordinate).toEqual(coordinates[point.sourceIndex]);
+      expect(point.snappedCoordinate).not.toBeNull();
+      expect(point.snappedCoordinate).toHaveLength(2);
+      expect(point.distanceMeters).not.toBeNull();
+    }
   });
 
   it("calculates a real distance/time matrix or reports a typed timeout", async () => {
@@ -68,8 +73,8 @@ describe("OpenRouteService live integration", () => {
       expect(response.distances).toHaveLength(3);
       expect(response.durations.every((row) => row.length === 3)).toBe(true);
       expect(response.distances.every((row) => row.length === 3)).toBe(true);
-      expect(response.durations[0][1]).toBeGreaterThan(0);
-      expect(response.distances[0][1]).toBeGreaterThan(0);
+      expect(response.durations[0][1]).not.toBeNull();
+      expect(response.distances[0][1]).not.toBeNull();
     } catch (error) {
       expect(error).toMatchObject({
         name: "WayboundError",

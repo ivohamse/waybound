@@ -1,11 +1,18 @@
 import type { LineString, MultiPolygon, Polygon } from "geojson";
 import type { Coordinate } from "#types";
 
+interface UnknownGeometry {
+  type?: unknown;
+  coordinates?: unknown;
+}
+
 export function isCoordinate(value: unknown): value is Coordinate {
   return (
     Array.isArray(value) &&
     value.length >= 2 &&
+    typeof value[0] === "number" &&
     Number.isFinite(value[0]) &&
+    typeof value[1] === "number" &&
     Number.isFinite(value[1])
   );
 }
@@ -13,7 +20,7 @@ export function isCoordinate(value: unknown): value is Coordinate {
 export function isLineString(value: unknown): value is LineString {
   if (!value || typeof value !== "object") return false;
 
-  const geometry = value as Partial<LineString>;
+  const geometry = value as UnknownGeometry;
   return (
     geometry.type === "LineString" &&
     Array.isArray(geometry.coordinates) &&
@@ -35,7 +42,7 @@ export function isPolygonGeometry(
 ): value is Polygon | MultiPolygon {
   if (!value || typeof value !== "object") return false;
 
-  const geometry = value as Partial<Polygon | MultiPolygon>;
+  const geometry = value as UnknownGeometry;
 
   if (geometry.type === "Polygon") {
     return (
@@ -74,7 +81,9 @@ export function isNullableNumberMatrix(
         Array.isArray(row) &&
         row.length === columns &&
         row.every(
-          (cell) => cell === null || (typeof cell === "number" && Number.isFinite(cell)),
+          (cell) =>
+            cell === null ||
+            (typeof cell === "number" && Number.isFinite(cell)),
         ),
     )
   );

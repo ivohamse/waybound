@@ -53,11 +53,13 @@ describe("OpenRouteService live integration", () => {
     expect(response.provider).toBe("OpenRouteService");
     expect(response.points).toHaveLength(coordinates.length);
 
-    for (const point of response.points) {
-      expect(point.inputCoordinate).toEqual(coordinates[point.sourceIndex]);
+    for (const [index, point] of response.points.entries()) {
+      expect(point.sourceIndex).toBe(index);
+      expect(point.inputCoordinate).toEqual(coordinates[index]);
       expect(point.snappedCoordinate).not.toBeNull();
       expect(point.snappedCoordinate).toHaveLength(2);
-      expect(point.distanceMeters).not.toBeNull();
+      expect(point.distanceMeters).toBeNull();
+      expect(point.streetName).toBeUndefined();
     }
   });
 

@@ -1,4 +1,4 @@
-import type { ProviderCapabilities } from "../../capabilities";
+import type { ProviderCapabilities } from "#core";
 
 const profiles = ["car", "bike", "hike"] as const;
 

@@ -6,13 +6,11 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "imports": {
-    "#src": "./src/*.ts",
-    "#types": "./src/types.ts",
-    "#utils/*": "./src/utils/*.ts",
-    "#providers/*": [
-      "./src/providers/*/index.ts",
-      "./src/providers/*.ts"
-    ]
+    "#core": "./src/core/index.ts",
+    "#types": "./src/types/index.ts",
+    "#http": "./src/http/index.ts",
+    "#providers": "./src/providers/index.ts",
+    "#providers/*": "./src/providers/*/index.ts"
   },
   "exports": {
     ".": {

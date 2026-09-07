@@ -1,4 +1,4 @@
-import {
+import type {
   RoutingProvider,
   RouteQuery,
   RouteResponse,
@@ -10,11 +10,10 @@ import {
   IsochroneResponse,
   ProfileType,
 } from "#types";
+import type { HttpClientOptions } from "#http";
+import { GraphHopperProvider, OpenRouteServiceProvider } from "#providers";
 import type { ProviderCapabilities } from "./capabilities";
 import { WayboundError } from "./errors";
-import type { HttpClientOptions } from "./http/client";
-import { OpenRouteServiceProvider } from "#providers/ors";
-import { GraphHopperProvider } from "#providers/graphhopper";
 
 export type ProviderType = "ors" | "graphhopper";
 export type CapabilityFeature = keyof ProviderCapabilities;
@@ -106,10 +105,6 @@ export class Router {
     }
   }
 
-  /**
-   * NIEUW IN v0.2.0: Bereken een tweedimensionale matrix van afstanden en reistijden
-   * tussen alle meegegeven locaties.
-   */
   public async getMatrix(query: MatrixQuery): Promise<MatrixResponse> {
     this.assertCapability("matrix", query.profile);
 
@@ -120,10 +115,6 @@ export class Router {
     }
   }
 
-  /**
-   * NIEUW IN v0.2.0: Genereer bereikbaarheidscirkels (GeoJSON Polygons) op basis
-   * van een tijd- of afstandsbuffers vanaf een centraal startpunt.
-   */
   public async getIsochrones(
     query: IsochroneQuery,
   ): Promise<IsochroneResponse> {

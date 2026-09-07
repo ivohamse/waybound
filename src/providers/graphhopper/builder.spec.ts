@@ -6,13 +6,18 @@ describe("GraphHopperRequestBuilder", () => {
   const mockApiKey = "gh-api-key-999";
   const builder = new GraphHopperRequestBuilder(mockApiKey);
 
-  it("builds a route request with the profile in the POST body", () => {
+  it("builds a route request with shared route options", () => {
     const query: RouteQuery = {
       coordinates: [
         [5.121, 52.09],
         [5.111, 52.09],
       ],
       profile: "bike",
+      options: {
+        instructions: false,
+        language: "nl",
+        elevation: true,
+      },
     };
 
     const request = builder.buildRouteRequest(query);
@@ -26,6 +31,9 @@ describe("GraphHopperRequestBuilder", () => {
     expect(body.profile).toBe("bike");
     expect(body.points_encoded).toBe(false);
     expect(body.points).toEqual(query.coordinates);
+    expect(body.instructions).toBe(false);
+    expect(body.locale).toBe("nl");
+    expect(body.elevation).toBe(true);
   });
 
   it("builds one reverse-geocoding request per nearest coordinate", () => {

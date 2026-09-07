@@ -24,16 +24,15 @@ describe("WayboundError", () => {
   });
 
   it("uses a typed error for unsupported providers", () => {
-    expect(() =>
+    try {
       new Router({
         provider: "unsupported" as never,
         apiKey: "test-key",
-      }),
-    ).toThrowError(
-      expect.objectContaining({
-        name: "WayboundError",
-        code: "UNSUPPORTED_PROVIDER",
-      }),
-    );
+      });
+      throw new Error("Expected Router construction to fail.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(WayboundError);
+      expect((error as WayboundError).code).toBe("UNSUPPORTED_PROVIDER");
+    }
   });
 });

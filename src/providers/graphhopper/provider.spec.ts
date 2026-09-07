@@ -122,12 +122,25 @@ describe("GraphHopperProvider", () => {
   });
 
   it("preserves exact Waybound ranges across multiple isochrone requests", async () => {
+    const validPolygon = {
+      type: "Polygon" as const,
+      coordinates: [
+        [
+          [5.12, 52.09],
+          [5.13, 52.09],
+          [5.13, 52.10],
+          [5.12, 52.10],
+          [5.12, 52.09],
+        ],
+      ],
+    };
+
     vi.spyOn(HttpClient.prototype, "execute")
       .mockResolvedValueOnce({
         polygons: [
           {
             properties: { bucket: 0 },
-            geometry: { type: "Polygon", coordinates: [] },
+            geometry: validPolygon,
           },
         ],
       })
@@ -135,7 +148,7 @@ describe("GraphHopperProvider", () => {
         polygons: [
           {
             properties: { bucket: 0 },
-            geometry: { type: "Polygon", coordinates: [] },
+            geometry: validPolygon,
           },
         ],
       });

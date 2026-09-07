@@ -26,7 +26,7 @@ describe("HTTP retry helpers", () => {
   it("parses Retry-After expressed as an HTTP date", () => {
     const now = Date.parse("2026-09-07T20:00:00Z");
     expect(
-      parseRetryAfter("Sun, 07 Sep 2026 20:00:05 GMT", now),
+      parseRetryAfter("Mon, 07 Sep 2026 20:00:05 GMT", now),
     ).toBe(5000);
   });
 

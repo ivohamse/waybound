@@ -62,24 +62,30 @@ describe("GraphHopper live integration", () => {
     expect(response.distances[0][1]).toBeGreaterThan(0);
   });
 
-  // The current GraphHopper API subscription has no Isochrone API allowance
-  // (the API reports an allowed time_limit of 0). Keep the contract test here so
-  // it can be enabled as soon as the account supports this endpoint.
-  it.skip("generates real isochrones", async () => {
-    const response = await router.getIsochrones({
-      coordinate: UTRECHT_CENTRE,
-      profile: "bike",
-      options: {
-        rangeType: "time",
-        ranges: [600],
-      },
-    });
+  it("generates real isochrones or reports the account limitation", async () => {
+    try {
+      const response = await router.getIsochrones({
+        coordinate: UTRECHT_CENTRE,
+        profile: "bike",
+        options: {
+          rangeType: "time",
+          ranges: [600],
+        },
+      });
 
-    expect(response.provider).toBe("GraphHopper");
-    expect(response.isochrones.length).toBeGreaterThan(0);
+      expect(response.provider).toBe("GraphHopper");
+      expect(response.isochrones.length).toBeGreaterThan(0);
 
-    for (const isochrone of response.isochrones) {
-      expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
+      for (const isochrone of response.isochrones) {
+        expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
+      }
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "WayboundError",
+        code: "PROVIDER_ERROR",
+        provider: "GraphHopper",
+        status: 400,
+      });
     }
   });
 });

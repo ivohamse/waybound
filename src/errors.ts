@@ -5,6 +5,7 @@ export type WayboundErrorCode =
   | "PROVIDER_ERROR"
   | "RATE_LIMITED"
   | "NETWORK_ERROR"
+  | "REQUEST_TIMEOUT"
   | "INVALID_RESPONSE";
 
 export interface WayboundErrorOptions {

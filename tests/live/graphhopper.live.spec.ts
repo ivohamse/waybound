@@ -27,8 +27,8 @@ describe("GraphHopper live integration", () => {
     expect(response.routes.length).toBeGreaterThan(0);
 
     const route = response.routes[0];
-    expect(route.distanceMeters).toBeGreaterThan(0);
-    expect(route.durationSeconds).toBeGreaterThan(0);
+    expect(route.distance).toBeGreaterThan(0);
+    expect(route.duration).toBeGreaterThan(0);
     expect(route.geometry.type).toBe("LineString");
     expect(route.geometry.coordinates.length).toBeGreaterThan(1);
     expect(route.maneuvers?.length ?? 0).toBeGreaterThan(0);
@@ -46,10 +46,10 @@ describe("GraphHopper live integration", () => {
 
     for (const point of response.points) {
       expect(point.inputCoordinate).toEqual(coordinates[point.sourceIndex]);
-      expect(point.snappedPoint).not.toBeNull();
-      expect(point.snappedPoint?.type).toBe("Point");
-      expect(point.snappedPoint?.coordinates).toHaveLength(2);
-      expect(point.distanceMeters).toBeNull();
+      expect(point.nearestPoint).not.toBeNull();
+      expect(point.nearestPoint?.type).toBe("Point");
+      expect(point.nearestPoint?.coordinates).toHaveLength(2);
+      expect(point.distance).toBeNull();
     }
   });
 
@@ -92,7 +92,7 @@ describe("GraphHopper live integration", () => {
 
     expect(response.provider).toBe("GraphHopper");
     expect(response.isochrones).toHaveLength(1);
-    expect(response.isochrones[0].value).toBe(600);
+    expect(response.isochrones[0]).toMatchObject({ duration: 600 });
     expect(["Polygon", "MultiPolygon"]).toContain(
       response.isochrones[0].geometry.type,
     );

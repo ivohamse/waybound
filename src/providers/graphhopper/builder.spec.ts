@@ -36,6 +36,19 @@ describe("GraphHopperRequestBuilder", () => {
     expect(body.elevation).toBe(true);
   });
 
+  it("maps the shared hike profile to GraphHopper foot", () => {
+    const request = builder.buildRouteRequest({
+      coordinates: [
+        [5.121, 52.09],
+        [5.111, 52.09],
+      ],
+      profile: "hike",
+    });
+
+    const body = JSON.parse(request.body!);
+    expect(body.profile).toBe("foot");
+  });
+
   it("builds one reverse-geocoding request per nearest coordinate", () => {
     const requests = builder.buildNearestRequests({
       coordinates: [

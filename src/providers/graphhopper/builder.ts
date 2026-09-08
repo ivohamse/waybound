@@ -25,7 +25,7 @@ export class GraphHopperRequestBuilder {
   private mapProfile(profile: ProfileType): string {
     const profileMap: Record<ProfileType, string> = {
       bike: "bike",
-      hike: "hike",
+      hike: "foot",
       car: "car",
     };
     return profileMap[profile];

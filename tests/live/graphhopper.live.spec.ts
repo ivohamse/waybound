@@ -23,10 +23,10 @@ const UTRECHT_STATION: [number, number] = [5.11142, 52.09];
 const UTRECHT_MUSEUM: [number, number] = [5.128, 52.085];
 
 describe("GraphHopper live integration", () => {
-  it("calculates a real route with the public route contract", async () => {
+  it("calculates a real hike route with the public route contract", async () => {
     const response = await router.getRoute({
       coordinates: [UTRECHT_CENTRE, UTRECHT_STATION],
-      profile: "bike",
+      profile: "hike",
       options: { instructions: true, language: "en" },
     });
 

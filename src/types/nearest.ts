@@ -14,8 +14,8 @@ export interface NearestQuery {
 export interface NearestResult {
   sourceIndex: number;
   inputCoordinate: Coordinate;
-  snappedPoint: Point | null;
-  distanceMeters: number | null;
+  nearestPoint: Point | null;
+  distance: number | null;
   streetName?: string;
 }
 

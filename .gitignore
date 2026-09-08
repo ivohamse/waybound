@@ -32,4 +32,5 @@ coverage/
 *.log
 
 # Generated test output
+test-output/
 *.txt

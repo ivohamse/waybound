@@ -92,6 +92,7 @@ if (
 
   const providerSelect = wrapper.querySelector<HTMLSelectElement>("#provider-select")!;
   providerSelect.value = readProvider() === "graphhopper" ? "graphhopper" : "ors";
+  dialogApiKey.placeholder = `${providerName(dialogProvider.value)} API key`;
 
   const syncFromActiveProvider = (): void => {
     const activeProvider = readProvider();

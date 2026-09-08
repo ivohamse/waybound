@@ -7,13 +7,18 @@ import {
 } from "./query-validation";
 
 function expectInvalidQuery(run: () => void, message: string): void {
-  expect(run).toThrowError(
-    expect.objectContaining({
+  try {
+    run();
+  } catch (error) {
+    expect(error).toMatchObject({
       name: "WayboundError",
       code: "INVALID_QUERY",
       message,
-    }),
-  );
+    });
+    return;
+  }
+
+  throw new Error("Expected query validation to throw.");
 }
 
 describe("query validation", () => {

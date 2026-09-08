@@ -22,10 +22,6 @@ Waybound provides one consistent API for routing providers such as OpenRouteServ
 
 ## Installation
 
-The first npm prerelease is planned as `0.4.0-alpha.1` under the `alpha` dist-tag.
-
-Once published:
-
 ```bash
 npm install waybound@alpha
 ```

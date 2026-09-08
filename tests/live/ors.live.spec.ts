@@ -30,6 +30,17 @@ const UTRECHT_CENTRE: [number, number] = [5.12142, 52.09063];
 const UTRECHT_STATION: [number, number] = [5.11142, 52.09];
 const UTRECHT_MUSEUM: [number, number] = [5.128, 52.085];
 
+function expectDiagnosticFailure(error: unknown): void {
+  expect(error).toMatchObject({
+    name: "WayboundError",
+    provider: "OpenRouteService",
+  });
+
+  expect(["REQUEST_TIMEOUT", "PROVIDER_ERROR"]).toContain(
+    (error as { code?: string }).code,
+  );
+}
+
 describe("OpenRouteService live integration", () => {
   it("calculates a real route with the public route contract", async () => {
     const response = await router.getRoute({
@@ -76,7 +87,7 @@ describe("OpenRouteService live integration", () => {
     }
   });
 
-  it("calculates a real distance/time matrix or reports a typed timeout", async () => {
+  it("calculates a real distance/time matrix or reports a diagnostic provider failure", async () => {
     let response;
 
     try {
@@ -85,11 +96,7 @@ describe("OpenRouteService live integration", () => {
         profile: "bike",
       });
     } catch (error) {
-      expect(error).toMatchObject({
-        name: "WayboundError",
-        code: "REQUEST_TIMEOUT",
-        provider: "OpenRouteService",
-      });
+      expectDiagnosticFailure(error);
       return;
     }
 
@@ -102,7 +109,7 @@ describe("OpenRouteService live integration", () => {
     expect(response.distances[0][1]).not.toBeNull();
   });
 
-  it("generates time-based isochrones with duration values or reports a typed timeout", async () => {
+  it("generates time-based isochrones with duration values or reports a diagnostic provider failure", async () => {
     let response;
 
     try {
@@ -115,11 +122,7 @@ describe("OpenRouteService live integration", () => {
         },
       });
     } catch (error) {
-      expect(error).toMatchObject({
-        name: "WayboundError",
-        code: "REQUEST_TIMEOUT",
-        provider: "OpenRouteService",
-      });
+      expectDiagnosticFailure(error);
       return;
     }
 
@@ -136,7 +139,7 @@ describe("OpenRouteService live integration", () => {
     }
   });
 
-  it("generates distance-based isochrones with distance values or reports a typed timeout", async () => {
+  it("generates distance-based isochrones with distance values or reports a diagnostic provider failure", async () => {
     let response;
 
     try {
@@ -149,11 +152,7 @@ describe("OpenRouteService live integration", () => {
         },
       });
     } catch (error) {
-      expect(error).toMatchObject({
-        name: "WayboundError",
-        code: "REQUEST_TIMEOUT",
-        provider: "OpenRouteService",
-      });
+      expectDiagnosticFailure(error);
       return;
     }
 

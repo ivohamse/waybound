@@ -9,14 +9,21 @@ if (!apiKey) {
   );
 }
 
-const router = new Router({ provider: "graphhopper", apiKey });
+const router = new Router({
+  provider: "graphhopper",
+  apiKey,
+  http: {
+    timeoutMs: 5_000,
+    maxRetries: 1,
+  },
+});
 
 const UTRECHT_CENTRE: [number, number] = [5.12142, 52.09063];
 const UTRECHT_STATION: [number, number] = [5.11142, 52.09];
 const UTRECHT_MUSEUM: [number, number] = [5.128, 52.085];
 
 describe("GraphHopper live integration", () => {
-  it("calculates a real route", async () => {
+  it("calculates a real route with the public route contract", async () => {
     const response = await router.getRoute({
       coordinates: [UTRECHT_CENTRE, UTRECHT_STATION],
       profile: "bike",
@@ -27,11 +34,15 @@ describe("GraphHopper live integration", () => {
     expect(response.routes.length).toBeGreaterThan(0);
 
     const route = response.routes[0];
-    expect(route.distance).toBeGreaterThan(0);
-    expect(route.duration).toBeGreaterThan(0);
+    expect(route.distance).toBeGreaterThan(100);
+    expect(route.distance).toBeLessThan(10_000);
+    expect(route.duration).toBeGreaterThan(10);
+    expect(route.duration).toBeLessThan(10_000);
     expect(route.geometry.type).toBe("LineString");
     expect(route.geometry.coordinates.length).toBeGreaterThan(1);
     expect(route.maneuvers?.length ?? 0).toBeGreaterThan(0);
+    expect(route).not.toHaveProperty("weight");
+    expect(route).not.toHaveProperty("waypointOrder");
   });
 
   it("returns one approximate nearest result per input coordinate", async () => {
@@ -50,6 +61,7 @@ describe("GraphHopper live integration", () => {
       expect(point.nearestPoint?.type).toBe("Point");
       expect(point.nearestPoint?.coordinates).toHaveLength(2);
       expect(point.distance).toBeNull();
+      expect(point).not.toHaveProperty("snappedPoint");
     }
   });
 
@@ -68,7 +80,7 @@ describe("GraphHopper live integration", () => {
     expect(response.distances[0][1]).not.toBeNull();
   });
 
-  it("generates real isochrones or reports the account limitation", async () => {
+  it("generates real time-based isochrones or reports the account limitation", async () => {
     let response;
 
     try {
@@ -93,6 +105,7 @@ describe("GraphHopper live integration", () => {
     expect(response.provider).toBe("GraphHopper");
     expect(response.isochrones).toHaveLength(1);
     expect(response.isochrones[0]).toMatchObject({ duration: 600 });
+    expect(response.isochrones[0]).not.toHaveProperty("distance");
     expect(["Polygon", "MultiPolygon"]).toContain(
       response.isochrones[0].geometry.type,
     );

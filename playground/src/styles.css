@@ -7,14 +7,18 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #app { margin: 0; min-height: 100%; }
-body { min-width: 320px; }
+html, body, #app { margin: 0; height: 100%; }
+body {
+  min-width: 320px;
+  overflow: hidden;
+}
 button, select, input { font: inherit; }
 
 .shell {
-  min-height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .toolbar {
@@ -28,6 +32,7 @@ button, select, input { font: inherit; }
   border-bottom: 1px solid #dbe2ea;
   position: relative;
   z-index: 5;
+  flex: 0 0 auto;
 }
 
 .brand {
@@ -116,11 +121,12 @@ button, select, input { font: inherit; }
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
+  overflow: hidden;
 }
 
 .map-panel {
   position: relative;
-  min-height: 640px;
+  min-height: 0;
   background: #dbe4ec;
 }
 
@@ -146,10 +152,12 @@ button, select, input { font: inherit; }
 }
 
 .result-panel {
+  min-height: 0;
   background: #fff;
   border-left: 1px solid #dbe2ea;
   padding: 20px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .status-row,
@@ -326,14 +334,25 @@ button, select, input { font: inherit; }
 .maplibregl-ctrl-attrib { font-size: 10px; }
 
 @media (max-width: 1180px) {
+  html, body, #app { height: auto; min-height: 100%; }
+  body { overflow: auto; }
+  .shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
   .toolbar { align-items: flex-start; }
   .brand { padding-top: 3px; }
-  .workspace { grid-template-columns: 1fr; }
+  .workspace {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
   .map-panel { min-height: 62vh; }
   .result-panel {
     border-left: 0;
     border-top: 1px solid #dbe2ea;
     max-height: none;
+    overflow: visible;
   }
 }
 

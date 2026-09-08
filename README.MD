@@ -22,14 +22,12 @@ Waybound provides one consistent API for routing providers such as OpenRouteServ
 
 ## Installation
 
-Waybound is not yet published to npm.
-
-npm publication is planned for a future release.
+The first npm prerelease is planned as `0.4.0-alpha.1` under the `alpha` dist-tag.
 
 Once published:
 
 ```bash
-npm install waybound
+npm install waybound@alpha
 ```
 
 ## Quick start
@@ -120,7 +118,7 @@ try {
 - Consistent GeoJSON geometry contracts
 - Consistent distance and duration conventions
 - Documentation cleanup
-- Release preparation
+- First npm alpha publication
 
 ### Before v1.0
 
@@ -128,6 +126,7 @@ try {
 - Expand provider and feature support
 - Improve documentation
 - Define backwards-compatibility guarantees
+- Validate the v1 API through beta and release-candidate prereleases
 
 ## License
 

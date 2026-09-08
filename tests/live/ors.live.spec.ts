@@ -9,7 +9,14 @@ if (!apiKey) {
   );
 }
 
-const router = new Router({ provider: "ors", apiKey });
+const router = new Router({
+  provider: "ors",
+  apiKey,
+  http: {
+    timeoutMs: 5_000,
+    maxRetries: 1,
+  },
+});
 const diagnosticRouter = new Router({
   provider: "ors",
   apiKey,
@@ -24,7 +31,7 @@ const UTRECHT_STATION: [number, number] = [5.11142, 52.09];
 const UTRECHT_MUSEUM: [number, number] = [5.128, 52.085];
 
 describe("OpenRouteService live integration", () => {
-  it("calculates a real route", async () => {
+  it("calculates a real route with the public route contract", async () => {
     const response = await router.getRoute({
       coordinates: [UTRECHT_CENTRE, UTRECHT_STATION],
       profile: "hike",
@@ -35,11 +42,15 @@ describe("OpenRouteService live integration", () => {
     expect(response.routes.length).toBeGreaterThan(0);
 
     const route = response.routes[0];
-    expect(route.distance).toBeGreaterThan(0);
-    expect(route.duration).toBeGreaterThan(0);
+    expect(route.distance).toBeGreaterThan(100);
+    expect(route.distance).toBeLessThan(10_000);
+    expect(route.duration).toBeGreaterThan(30);
+    expect(route.duration).toBeLessThan(10_000);
     expect(route.geometry.type).toBe("LineString");
     expect(route.geometry.coordinates.length).toBeGreaterThan(1);
     expect(route.maneuvers?.length ?? 0).toBeGreaterThan(0);
+    expect(route).not.toHaveProperty("weight");
+    expect(route).not.toHaveProperty("waypointOrder");
   });
 
   it("snaps multiple coordinates to the routing network in one request", async () => {
@@ -61,6 +72,7 @@ describe("OpenRouteService live integration", () => {
       expect(point.nearestPoint?.coordinates).toHaveLength(2);
       expect(point.distance).not.toBeNull();
       expect(point.distance).toBeGreaterThanOrEqual(0);
+      expect(point).not.toHaveProperty("snappedPoint");
     }
   });
 
@@ -90,7 +102,7 @@ describe("OpenRouteService live integration", () => {
     expect(response.distances[0][1]).not.toBeNull();
   });
 
-  it("generates real isochrones or reports a typed timeout", async () => {
+  it("generates time-based isochrones with duration values or reports a typed timeout", async () => {
     let response;
 
     try {
@@ -117,8 +129,43 @@ describe("OpenRouteService live integration", () => {
     for (const isochrone of response.isochrones) {
       expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
       expect("duration" in isochrone).toBe(true);
+      expect("distance" in isochrone).toBe(false);
       if ("duration" in isochrone) {
         expect(isochrone.duration).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("generates distance-based isochrones with distance values or reports a typed timeout", async () => {
+    let response;
+
+    try {
+      response = await diagnosticRouter.getIsochrones({
+        coordinate: UTRECHT_CENTRE,
+        profile: "bike",
+        options: {
+          rangeType: "distance",
+          ranges: [1_000, 2_000],
+        },
+      });
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "WayboundError",
+        code: "REQUEST_TIMEOUT",
+        provider: "OpenRouteService",
+      });
+      return;
+    }
+
+    expect(response.provider).toBe("OpenRouteService");
+    expect(response.isochrones.length).toBeGreaterThan(0);
+
+    for (const isochrone of response.isochrones) {
+      expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
+      expect("distance" in isochrone).toBe(true);
+      expect("duration" in isochrone).toBe(false);
+      if ("distance" in isochrone) {
+        expect(isochrone.distance).toBeGreaterThan(0);
       }
     }
   });

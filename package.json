@@ -33,6 +33,7 @@
     "test:live": "vitest run --config vitest.live.config.mts",
     "playground": "npm run build && npm --prefix playground run dev",
     "playground:build": "npm run build && npm --prefix playground run build",
+    "check:release": "npm test && npm run build && npm --prefix playground run build && npm pack --dry-run",
     "prepublishOnly": "npm test && npm run build",
     "yalc:push": "npm run build && yalc push"
   },

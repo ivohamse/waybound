@@ -3,11 +3,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Router, WayboundError, type Coordinate, type ProfileType, type ProviderType } from "waybound";
 import "./styles.css";
 
-type PointRole = "start" | "end";
+type FeatureType = "route" | "nearest" | "matrix" | "isochrones";
+type RangeType = "time" | "distance";
 
 interface PlaygroundState {
   provider: ProviderType;
   profile: ProfileType;
+  feature: FeatureType;
   coordinates: Coordinate[];
   apiKeys: Partial<Record<ProviderType, string>>;
   map?: Map;
@@ -16,6 +18,7 @@ interface PlaygroundState {
 const state: PlaygroundState = {
   provider: "ors",
   profile: "hike",
+  feature: "route",
   coordinates: [],
   apiKeys: {
     ors: import.meta.env.VITE_ORS_API_KEY ?? "",
@@ -55,8 +58,20 @@ app.innerHTML = `
           </select>
         </label>
 
+        <label>
+          <span>Feature</span>
+          <select id="feature">
+            <option value="route">Route</option>
+            <option value="nearest">Nearest</option>
+            <option value="matrix">Matrix</option>
+            <option value="isochrones">Isochrones</option>
+          </select>
+        </label>
+
+        <div id="feature-options" class="feature-options"></div>
+
         <label class="api-key-field">
-          <span>API key</span>
+          <span>API key <small>optional here</small></span>
           <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="ORS API key" />
         </label>
 
@@ -67,41 +82,22 @@ app.innerHTML = `
 
     <main class="workspace">
       <section class="map-panel">
-        <div id="map" aria-label="Interactive routing map"></div>
+        <div id="map" aria-label="Interactive Waybound test map"></div>
         <div class="map-help" id="map-help">Click the map to choose a start point.</div>
       </section>
 
       <aside class="result-panel">
         <div class="status-row">
-          <span class="eyebrow">Route result</span>
+          <span id="result-title" class="eyebrow">Route result</span>
           <span id="provider-badge" class="badge">ORS</span>
         </div>
 
         <div id="empty-state" class="empty-state">
-          <strong>No route yet</strong>
-          <p>Choose two points on the map, enter the active provider key and run the route.</p>
+          <strong>No result yet</strong>
+          <p id="empty-copy">Choose two points on the map and run the route.</p>
         </div>
 
-        <div id="result" class="result hidden">
-          <div class="metric-grid">
-            <div class="metric"><span>Distance</span><strong id="distance">—</strong></div>
-            <div class="metric"><span>Duration</span><strong id="duration">—</strong></div>
-          </div>
-
-          <div class="coords-card">
-            <div><span>Start</span><code id="start-coordinate">—</code></div>
-            <div><span>End</span><code id="end-coordinate">—</code></div>
-          </div>
-
-          <div class="maneuver-section">
-            <div class="section-heading">
-              <strong>Maneuvers</strong>
-              <span id="maneuver-count">0</span>
-            </div>
-            <ol id="maneuvers"></ol>
-          </div>
-        </div>
-
+        <div id="result" class="result hidden"></div>
         <div id="error" class="error hidden" role="alert"></div>
       </aside>
     </main>
@@ -110,12 +106,16 @@ app.innerHTML = `
 
 const providerSelect = document.querySelector<HTMLSelectElement>("#provider")!;
 const profileSelect = document.querySelector<HTMLSelectElement>("#profile")!;
+const featureSelect = document.querySelector<HTMLSelectElement>("#feature")!;
+const featureOptions = document.querySelector<HTMLDivElement>("#feature-options")!;
 const apiKeyInput = document.querySelector<HTMLInputElement>("#api-key")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clear")!;
 const help = document.querySelector<HTMLDivElement>("#map-help")!;
 const providerBadge = document.querySelector<HTMLSpanElement>("#provider-badge")!;
+const resultTitle = document.querySelector<HTMLSpanElement>("#result-title")!;
 const emptyState = document.querySelector<HTMLDivElement>("#empty-state")!;
+const emptyCopy = document.querySelector<HTMLParagraphElement>("#empty-copy")!;
 const result = document.querySelector<HTMLDivElement>("#result")!;
 const errorBox = document.querySelector<HTMLDivElement>("#error")!;
 
@@ -139,48 +139,35 @@ const map = new maplibregl.Map({
   },
 });
 state.map = map;
-
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
 
 map.on("load", () => {
-  map.addSource("route", {
-    type: "geojson",
-    data: { type: "FeatureCollection", features: [] },
-  });
+  addGeoJsonSource("route");
+  addGeoJsonSource("nearest-lines");
+  addGeoJsonSource("nearest-points");
+  addGeoJsonSource("isochrones");
 
-  map.addLayer({
-    id: "route-casing",
-    type: "line",
-    source: "route",
-    paint: {
-      "line-color": "#ffffff",
-      "line-width": 8,
-      "line-opacity": 0.9,
-    },
-  });
-
-  map.addLayer({
-    id: "route-line",
-    type: "line",
-    source: "route",
-    paint: {
-      "line-color": "#2563eb",
-      "line-width": 5,
-      "line-opacity": 0.95,
-    },
-  });
+  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": "#2563eb", "fill-opacity": 0.18 } });
+  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": "#2563eb", "line-width": 2, "line-opacity": 0.8 } });
+  map.addLayer({ id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } });
+  map.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } });
+  map.addLayer({ id: "nearest-points-layer", type: "circle", source: "nearest-points", paint: { "circle-radius": 7, "circle-color": "#7c3aed", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
 });
 
-const markers: Partial<Record<PointRole, maplibregl.Marker>> = {};
+const markers: maplibregl.Marker[] = [];
 
 map.on("click", (event) => {
-  if (state.coordinates.length >= 2) {
-    clearRoute();
-  }
+  const coordinate: Coordinate = [event.lngLat.lng, event.lngLat.lat];
+  const max = maxPointsForFeature();
 
-  state.coordinates.push([event.lngLat.lng, event.lngLat.lat]);
+  if (state.feature === "route" && state.coordinates.length >= 2) state.coordinates = [];
+  if (state.feature === "isochrones") state.coordinates = [];
+  if (state.coordinates.length >= max) return;
+
+  state.coordinates.push(coordinate);
   syncMarkers();
-  clearResult();
+  clearResult(false);
   updateHelp();
 });
 
@@ -189,162 +176,305 @@ providerSelect.addEventListener("change", () => {
   state.provider = providerSelect.value as ProviderType;
   apiKeyInput.value = state.apiKeys[state.provider] ?? "";
   apiKeyInput.placeholder = state.provider === "ors" ? "ORS API key" : "GraphHopper API key";
-  providerBadge.textContent = state.provider === "ors" ? "ORS" : "GraphHopper";
-  clearResult();
+  providerBadge.textContent = providerLabel();
+  clearResult(false);
 });
 
 profileSelect.addEventListener("change", () => {
   state.profile = profileSelect.value as ProfileType;
-  clearResult();
+  clearResult(false);
+});
+
+featureSelect.addEventListener("change", () => {
+  state.feature = featureSelect.value as FeatureType;
+  state.coordinates = [];
+  syncMarkers();
+  clearVisuals();
+  renderFeatureOptions();
+  updateFeatureUi();
+  clearResult(false);
+  updateHelp();
 });
 
 apiKeyInput.addEventListener("input", () => {
   state.apiKeys[state.provider] = apiKeyInput.value.trim();
 });
 
-clearButton.addEventListener("click", clearRoute);
-runButton.addEventListener("click", runRoute);
+clearButton.addEventListener("click", clearAll);
+runButton.addEventListener("click", runFeature);
+
+renderFeatureOptions();
+updateFeatureUi();
+
+function addGeoJsonSource(id: string): void {
+  map.addSource(id, { type: "geojson", data: emptyFeatureCollection() });
+}
+
+function maxPointsForFeature(): number {
+  if (state.feature === "route") return 2;
+  if (state.feature === "isochrones") return 1;
+  return 8;
+}
+
+function minPointsForFeature(): number {
+  if (state.feature === "route") return 2;
+  return 1;
+}
+
+function renderFeatureOptions(): void {
+  if (state.feature === "route") {
+    featureOptions.innerHTML = `<label><span>Instructions</span><select id="instructions"><option value="yes">On</option><option value="no">Off</option></select></label>`;
+  } else if (state.feature === "nearest") {
+    featureOptions.innerHTML = `<label><span>Radius (m)</span><input id="radius" type="number" min="1" step="1" placeholder="default" /></label>`;
+  } else if (state.feature === "isochrones") {
+    featureOptions.innerHTML = `
+      <label><span>Range type</span><select id="range-type"><option value="time">Time</option><option value="distance">Distance</option></select></label>
+      <label class="ranges-field"><span>Ranges</span><input id="ranges" value="300,600,900" aria-label="Isochrone ranges" /></label>
+    `;
+  } else {
+    featureOptions.innerHTML = "";
+  }
+}
+
+function updateFeatureUi(): void {
+  const labels: Record<FeatureType, string> = {
+    route: "Route",
+    nearest: "Nearest",
+    matrix: "Matrix",
+    isochrones: "Isochrones",
+  };
+  runButton.textContent = `Run ${labels[state.feature].toLowerCase()}`;
+  resultTitle.textContent = `${labels[state.feature]} result`;
+  emptyCopy.textContent = featureEmptyCopy();
+}
+
+function featureEmptyCopy(): string {
+  if (state.feature === "route") return "Choose two points on the map and run the route.";
+  if (state.feature === "nearest") return "Choose one or more points and inspect their nearest mapped points.";
+  if (state.feature === "matrix") return "Choose multiple points and compare distance and duration between them.";
+  return "Choose one origin and visualize time- or distance-based isochrones.";
+}
 
 function syncMarkers(): void {
-  const roles: PointRole[] = ["start", "end"];
+  markers.forEach((marker) => marker.remove());
+  markers.length = 0;
 
-  roles.forEach((role, index) => {
-    markers[role]?.remove();
-    delete markers[role];
-
-    const coordinate = state.coordinates[index];
-    if (!coordinate) return;
-
+  state.coordinates.forEach((coordinate, index) => {
     const element = document.createElement("div");
-    element.className = `route-marker ${role}`;
-    element.textContent = role === "start" ? "A" : "B";
-
-    markers[role] = new maplibregl.Marker({ element })
-      .setLngLat(coordinate)
-      .addTo(map);
+    element.className = "route-marker";
+    element.textContent = String.fromCharCode(65 + index);
+    markers.push(new maplibregl.Marker({ element }).setLngLat(coordinate).addTo(map));
   });
 }
 
 function updateHelp(): void {
-  if (state.coordinates.length === 0) help.textContent = "Click the map to choose a start point.";
-  if (state.coordinates.length === 1) help.textContent = "Now choose the destination.";
-  if (state.coordinates.length === 2) help.textContent = "Ready. Run the route or click elsewhere to start over.";
+  const count = state.coordinates.length;
+  if (state.feature === "route") {
+    help.textContent = count === 0 ? "Click the map to choose a start point." : count === 1 ? "Now choose the destination." : "Ready. Run the route or click elsewhere to start over.";
+  } else if (state.feature === "nearest") {
+    help.textContent = count === 0 ? "Click one or more locations to test nearest-point lookup." : `${count} point${count === 1 ? "" : "s"} selected. Add more or run nearest.`;
+  } else if (state.feature === "matrix") {
+    help.textContent = count === 0 ? "Click locations to build a matrix." : `${count} point${count === 1 ? "" : "s"} selected. Add up to 8 or run matrix.`;
+  } else {
+    help.textContent = count === 0 ? "Click the map to choose the isochrone origin." : "Origin selected. Configure ranges and run isochrones.";
+  }
 }
 
-function clearRoute(): void {
+function clearAll(): void {
   state.coordinates = [];
   syncMarkers();
-  setRouteGeometry(undefined);
-  clearResult();
+  clearVisuals();
+  clearResult(true);
   updateHelp();
 }
 
-function clearResult(): void {
+function clearResult(resetVisuals = true): void {
   result.classList.add("hidden");
+  result.innerHTML = "";
   emptyState.classList.remove("hidden");
   errorBox.classList.add("hidden");
   errorBox.textContent = "";
-  setRouteGeometry(undefined);
+  if (resetVisuals) clearVisuals();
 }
 
-async function runRoute(): Promise<void> {
-  errorBox.classList.add("hidden");
+function clearVisuals(): void {
+  setSourceData("route", emptyFeatureCollection());
+  setSourceData("nearest-lines", emptyFeatureCollection());
+  setSourceData("nearest-points", emptyFeatureCollection());
+  setSourceData("isochrones", emptyFeatureCollection());
+}
 
-  if (state.coordinates.length !== 2) {
-    showError("Choose exactly two points on the map first.");
+async function runFeature(): Promise<void> {
+  errorBox.classList.add("hidden");
+  if (state.coordinates.length < minPointsForFeature()) {
+    showError(`Select at least ${minPointsForFeature()} point${minPointsForFeature() === 1 ? "" : "s"} first.`);
     return;
   }
 
   const apiKey = apiKeyInput.value.trim();
-  if (!apiKey) {
-    showError(`Enter an API key for ${state.provider === "ors" ? "OpenRouteService" : "GraphHopper"}.`);
-    return;
-  }
-
   runButton.disabled = true;
-  runButton.textContent = "Routing…";
+  const idleLabel = runButton.textContent ?? "Run";
+  runButton.textContent = "Running…";
 
   try {
-    const router = new Router({
-      provider: state.provider,
-      apiKey,
-      http: { timeoutMs: 10_000, maxRetries: 0 },
-    });
-
-    const response = await router.getRoute({
-      coordinates: state.coordinates,
-      profile: state.profile,
-      options: { instructions: true },
-    });
-
-    const route = response.routes[0];
-    if (!route) throw new Error("Provider returned no route.");
-
-    setRouteGeometry(route.geometry);
-    renderResult(response.provider, route.distance, route.duration, route.maneuvers ?? []);
-    fitToRoute(route.geometry.coordinates as Coordinate[]);
+    const router = new Router({ provider: state.provider, apiKey, http: { timeoutMs: 10_000, maxRetries: 0 } });
+    if (state.feature === "route") await runRoute(router);
+    if (state.feature === "nearest") await runNearest(router);
+    if (state.feature === "matrix") await runMatrix(router);
+    if (state.feature === "isochrones") await runIsochrones(router);
   } catch (error) {
     const message = error instanceof WayboundError
       ? `${error.code}: ${error.message}`
-      : error instanceof Error
-        ? error.message
-        : String(error);
+      : error instanceof Error ? error.message : String(error);
     showError(message);
   } finally {
     runButton.disabled = false;
-    runButton.textContent = "Run route";
+    runButton.textContent = idleLabel;
   }
 }
 
-function setRouteGeometry(geometry?: { type: "LineString"; coordinates: number[][] }): void {
-  const source = map.getSource("route") as GeoJSONSource | undefined;
-  if (!source) return;
+async function runRoute(router: Router): Promise<void> {
+  if (state.coordinates.length !== 2) throw new Error("Route requires exactly two selected points in the playground.");
+  const instructions = document.querySelector<HTMLSelectElement>("#instructions")?.value !== "no";
+  const response = await router.getRoute({ coordinates: state.coordinates, profile: state.profile, options: { instructions } });
+  const route = response.routes[0];
+  if (!route) throw new Error("Provider returned no route.");
 
-  source.setData(geometry
-    ? { type: "Feature", properties: {}, geometry }
-    : { type: "FeatureCollection", features: [] });
+  setSourceData("route", { type: "Feature", properties: {}, geometry: route.geometry });
+  fitCoordinates(route.geometry.coordinates as Coordinate[]);
+  renderResult(response.provider, `
+    <div class="metric-grid">
+      <div class="metric"><span>Distance</span><strong>${formatDistance(route.distance)}</strong></div>
+      <div class="metric"><span>Duration</span><strong>${formatDuration(route.duration)}</strong></div>
+    </div>
+    ${renderCoordinatesCard(state.coordinates)}
+    <div class="section-block">
+      <div class="section-heading"><strong>Maneuvers</strong><span>${route.maneuvers?.length ?? 0}</span></div>
+      <ol class="maneuvers">${renderManeuvers(route.maneuvers ?? [])}</ol>
+    </div>
+  `);
 }
 
-function renderResult(
-  provider: string,
-  distance: number,
-  duration: number,
-  maneuvers: Array<{ instruction: string; distance: number; duration: number }>,
-): void {
-  providerBadge.textContent = provider;
-  document.querySelector("#distance")!.textContent = formatDistance(distance);
-  document.querySelector("#duration")!.textContent = formatDuration(duration);
-  document.querySelector("#start-coordinate")!.textContent = formatCoordinate(state.coordinates[0]);
-  document.querySelector("#end-coordinate")!.textContent = formatCoordinate(state.coordinates[1]);
-  document.querySelector("#maneuver-count")!.textContent = String(maneuvers.length);
+async function runNearest(router: Router): Promise<void> {
+  const radiusRaw = document.querySelector<HTMLInputElement>("#radius")?.value.trim();
+  const radius = radiusRaw ? Number(radiusRaw) : undefined;
+  if (radius !== undefined && (!Number.isFinite(radius) || radius <= 0)) throw new Error("Radius must be greater than 0.");
 
-  const list = document.querySelector<HTMLOListElement>("#maneuvers")!;
-  list.innerHTML = "";
+  const response = await router.getNearest({ coordinates: state.coordinates, profile: state.profile, options: radius ? { radius } : undefined });
+  const pointFeatures: object[] = [];
+  const lineFeatures: object[] = [];
 
-  maneuvers.slice(0, 40).forEach((maneuver) => {
-    const item = document.createElement("li");
-    item.innerHTML = `<span>${escapeHtml(maneuver.instruction)}</span><small>${formatDistance(maneuver.distance)} · ${formatDuration(maneuver.duration)}</small>`;
-    list.appendChild(item);
+  response.points.forEach((item) => {
+    if (!item.nearestPoint) return;
+    pointFeatures.push({ type: "Feature", properties: { sourceIndex: item.sourceIndex }, geometry: item.nearestPoint });
+    lineFeatures.push({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [item.inputCoordinate, item.nearestPoint.coordinates] } });
   });
 
-  if (maneuvers.length === 0) {
-    const item = document.createElement("li");
-    item.className = "muted";
-    item.textContent = "No turn-by-turn maneuvers returned.";
-    list.appendChild(item);
-  }
+  setSourceData("nearest-points", { type: "FeatureCollection", features: pointFeatures });
+  setSourceData("nearest-lines", { type: "FeatureCollection", features: lineFeatures });
+  fitCoordinates([...state.coordinates, ...response.points.flatMap((p) => p.nearestPoint ? [p.nearestPoint.coordinates as Coordinate] : [])]);
 
+  renderResult(response.provider, `
+    <div class="section-block first">
+      <div class="section-heading"><strong>Nearest points</strong><span>${response.points.length}</span></div>
+      <div class="result-list">
+        ${response.points.map((item) => `
+          <div class="result-row">
+            <div><strong>${markerLabel(item.sourceIndex)}</strong><span>${item.streetName ? escapeHtml(item.streetName) : "No street name"}</span></div>
+            <div class="align-right"><strong>${item.distance == null ? "—" : formatDistance(item.distance)}</strong><code>${item.nearestPoint ? formatCoordinate(item.nearestPoint.coordinates as Coordinate) : "No point"}</code></div>
+          </div>`).join("")}
+      </div>
+    </div>
+  `);
+}
+
+async function runMatrix(router: Router): Promise<void> {
+  const response = await router.getMatrix({ coordinates: state.coordinates, profile: state.profile });
+  fitCoordinates(state.coordinates);
+  renderResult(response.provider, `
+    <div class="section-block first">
+      <div class="section-heading"><strong>Durations</strong><span>seconds → formatted</span></div>
+      ${renderMatrix(response.durations, formatDuration)}
+    </div>
+    <div class="section-block">
+      <div class="section-heading"><strong>Distances</strong><span>meters → formatted</span></div>
+      ${renderMatrix(response.distances, formatDistance)}
+    </div>
+  `);
+}
+
+async function runIsochrones(router: Router): Promise<void> {
+  const rangeType = (document.querySelector<HTMLSelectElement>("#range-type")?.value ?? "time") as RangeType;
+  const ranges = parseRanges(document.querySelector<HTMLInputElement>("#ranges")?.value ?? "");
+  const response = await router.getIsochrones({ coordinate: state.coordinates[0], profile: state.profile, options: { rangeType, ranges } });
+
+  setSourceData("isochrones", {
+    type: "FeatureCollection",
+    features: response.isochrones.map((item, index) => ({ type: "Feature", properties: { index }, geometry: item.geometry })),
+  });
+
+  const boundsCoordinates = response.isochrones.flatMap((item) => flattenGeometryCoordinates(item.geometry.coordinates));
+  fitCoordinates(boundsCoordinates.length ? boundsCoordinates : state.coordinates);
+
+  renderResult(response.provider, `
+    <div class="section-block first">
+      <div class="section-heading"><strong>Isochrones</strong><span>${response.isochrones.length}</span></div>
+      <div class="result-list">
+        ${response.isochrones.map((item, index) => {
+          const value = "duration" in item ? formatDuration(item.duration) : formatDistance(item.distance);
+          return `<div class="result-row"><div><strong>Range ${index + 1}</strong><span>${rangeType}</span></div><div class="align-right"><strong>${value}</strong><code>${item.geometry.type}</code></div></div>`;
+        }).join("")}
+      </div>
+    </div>
+  `);
+}
+
+function renderResult(provider: string, html: string): void {
+  providerBadge.textContent = provider;
+  result.innerHTML = html;
   emptyState.classList.add("hidden");
   errorBox.classList.add("hidden");
   result.classList.remove("hidden");
 }
 
-function fitToRoute(coordinates: Coordinate[]): void {
+function renderCoordinatesCard(coordinates: Coordinate[]): string {
+  return `<div class="coords-card">${coordinates.map((coordinate, index) => `<div><span>${markerLabel(index)}</span><code>${formatCoordinate(coordinate)}</code></div>`).join("")}</div>`;
+}
+
+function renderManeuvers(maneuvers: Array<{ instruction: string; distance: number; duration: number }>): string {
+  if (maneuvers.length === 0) return `<li class="muted">No turn-by-turn maneuvers returned.</li>`;
+  return maneuvers.slice(0, 40).map((maneuver) => `<li><span>${escapeHtml(maneuver.instruction)}</span><small>${formatDistance(maneuver.distance)} · ${formatDuration(maneuver.duration)}</small></li>`).join("");
+}
+
+function renderMatrix(values: (number | null)[][], formatter: (value: number) => string): string {
+  const headers = state.coordinates.map((_, index) => markerLabel(index));
+  return `<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th></th>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${values.map((row, rowIndex) => `<tr><th>${headers[rowIndex] ?? rowIndex + 1}</th>${row.map((value) => `<td>${value == null ? "—" : formatter(value)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function parseRanges(value: string): number[] {
+  const ranges = value.split(",").map((part) => Number(part.trim())).filter((n) => Number.isFinite(n));
+  if (ranges.length === 0 || ranges.some((n) => n <= 0)) throw new Error("Ranges must be comma-separated positive numbers, e.g. 300,600,900.");
+  return ranges;
+}
+
+function flattenGeometryCoordinates(value: unknown): Coordinate[] {
+  if (!Array.isArray(value)) return [];
+  if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") return [[value[0], value[1]] as Coordinate];
+  return value.flatMap(flattenGeometryCoordinates);
+}
+
+function setSourceData(id: string, data: object): void {
+  const source = map.getSource(id) as GeoJSONSource | undefined;
+  if (source) source.setData(data as never);
+}
+
+function emptyFeatureCollection(): { type: "FeatureCollection"; features: never[] } {
+  return { type: "FeatureCollection", features: [] };
+}
+
+function fitCoordinates(coordinates: Coordinate[]): void {
   if (coordinates.length === 0) return;
-  const bounds = coordinates.reduce(
-    (acc, coordinate) => acc.extend(coordinate),
-    new maplibregl.LngLatBounds(coordinates[0], coordinates[0]),
-  );
+  const bounds = coordinates.reduce((acc, coordinate) => acc.extend(coordinate), new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
   map.fitBounds(bounds, { padding: 80, duration: 600, maxZoom: 14 });
 }
 
@@ -355,11 +485,20 @@ function showError(message: string): void {
   errorBox.classList.remove("hidden");
 }
 
+function providerLabel(): string {
+  return state.provider === "ors" ? "ORS" : "GraphHopper";
+}
+
+function markerLabel(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
 function formatDistance(meters: number): string {
   return meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${Math.round(meters)} m`;
 }
 
 function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)} s`;
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
@@ -372,11 +511,5 @@ function formatCoordinate(coordinate?: Coordinate): string {
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;",
-  })[char] ?? char);
+  return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char] ?? char);
 }

@@ -99,8 +99,8 @@ export class OpenRouteServiceProvider implements RoutingProvider {
 
             maneuvers.push({
               instruction: step.instruction,
-              distanceMeters: step.distance!,
-              durationSeconds: step.duration!,
+              distance: step.distance!,
+              duration: step.duration!,
               coordinate: [coordinate[0], coordinate[1]],
             });
           }
@@ -108,15 +108,10 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       }
 
       return {
-        distanceMeters: summary.distance!,
-        durationSeconds: summary.duration!,
+        distance: summary.distance!,
+        duration: summary.duration!,
         geometry: geometry as LineString,
-        weight:
-          typeof summary.weight === "number" && Number.isFinite(summary.weight)
-            ? summary.weight
-            : undefined,
         maneuvers,
-        waypointOrder: feature.properties?.waypoint_order,
       };
     });
 
@@ -144,8 +139,8 @@ export class OpenRouteServiceProvider implements RoutingProvider {
         return {
           sourceIndex,
           inputCoordinate,
-          snappedCoordinate: null,
-          distanceMeters: null,
+          nearestPoint: null,
+          distance: null,
         };
       }
 
@@ -169,8 +164,11 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       return {
         sourceIndex,
         inputCoordinate,
-        snappedCoordinate: [location.location[0], location.location[1]],
-        distanceMeters: location.snapped_distance ?? null,
+        nearestPoint: {
+          type: "Point",
+          coordinates: [location.location[0], location.location[1]],
+        },
+        distance: location.snapped_distance ?? null,
         streetName: location.name,
       };
     });
@@ -217,10 +215,11 @@ export class OpenRouteServiceProvider implements RoutingProvider {
         );
       }
 
-      return {
-        value: value!,
-        geometry: geometry as Polygon | MultiPolygon,
-      };
+      const normalizedGeometry = geometry as Polygon | MultiPolygon;
+
+      return query.options.rangeType === "time"
+        ? { duration: value!, geometry: normalizedGeometry }
+        : { distance: value!, geometry: normalizedGeometry };
     });
 
     return { provider: this.name, isochrones };

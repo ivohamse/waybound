@@ -42,10 +42,10 @@ describe("GraphHopperProvider", () => {
     const route = response.routes[0];
 
     expect(response.provider).toBe("GraphHopper");
-    expect(route.distanceMeters).toBe(850);
-    expect(route.durationSeconds).toBe(120);
-    expect(route.weight).toBe(15.5);
-    expect(route.waypointOrder).toEqual([0, 2, 1]);
+    expect(route.distance).toBe(850);
+    expect(route.duration).toBe(120);
+    expect(route).not.toHaveProperty("weight");
+    expect(route).not.toHaveProperty("waypointOrder");
   });
 
   it("uses instruction.interval to locate maneuvers", async () => {
@@ -83,7 +83,8 @@ describe("GraphHopperProvider", () => {
 
     expect(response.routes[0].maneuvers?.[0]).toMatchObject({
       instruction: "Sla linksaf richting Neude",
-      durationSeconds: 20,
+      duration: 20,
+      distance: 150,
       coordinate: [5.12, 52.09],
     });
   });
@@ -109,15 +110,18 @@ describe("GraphHopperProvider", () => {
     expect(response.points[0]).toMatchObject({
       sourceIndex: 0,
       inputCoordinate: coordinates[0],
-      snappedCoordinate: [5.1215, 52.0907],
-      distanceMeters: null,
+      nearestPoint: {
+        type: "Point",
+        coordinates: [5.1215, 52.0907],
+      },
+      distance: null,
       streetName: "A",
     });
     expect(response.points[1]).toMatchObject({
       sourceIndex: 1,
       inputCoordinate: coordinates[1],
-      snappedCoordinate: null,
-      distanceMeters: null,
+      nearestPoint: null,
+      distance: null,
     });
   });
 
@@ -128,8 +132,8 @@ describe("GraphHopperProvider", () => {
         [
           [5.12, 52.09],
           [5.13, 52.09],
-          [5.13, 52.10],
-          [5.12, 52.10],
+          [5.13, 52.1],
+          [5.12, 52.1],
           [5.12, 52.09],
         ],
       ],
@@ -159,7 +163,11 @@ describe("GraphHopperProvider", () => {
       options: { rangeType: "time", ranges: [300, 900] },
     });
 
-    expect(response.isochrones.map(({ value }) => value)).toEqual([300, 900]);
+    expect(
+      response.isochrones.map((isochrone) =>
+        "duration" in isochrone ? isochrone.duration : undefined,
+      ),
+    ).toEqual([300, 900]);
   });
 
   it("throws INVALID_RESPONSE for malformed provider data", async () => {

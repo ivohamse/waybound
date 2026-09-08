@@ -1,4 +1,4 @@
-import type { LineString, MultiPolygon, Polygon } from "geojson";
+import type { LineString, MultiPolygon, Point, Polygon } from "geojson";
 import type {
   RoutingProvider,
   RouteQuery,
@@ -95,25 +95,18 @@ export class GraphHopperProvider implements RoutingProvider {
 
           return {
             instruction: instruction.text,
-            distanceMeters: instruction.distance!,
-            durationSeconds: instruction.time! / 1000,
+            distance: instruction.distance!,
+            duration: instruction.time! / 1000,
             coordinate: [coordinate[0], coordinate[1]] as Coordinate,
           };
         });
       }
 
       return {
-        distanceMeters: path.distance!,
-        durationSeconds: path.time! / 1000,
+        distance: path.distance!,
+        duration: path.time! / 1000,
         geometry: geometry as LineString,
-        weight:
-          typeof path.weight === "number" && Number.isFinite(path.weight)
-            ? path.weight
-            : undefined,
         maneuvers,
-        waypointOrder: Array.isArray(path.points_order)
-          ? path.points_order
-          : undefined,
       };
     });
 
@@ -136,7 +129,7 @@ export class GraphHopperProvider implements RoutingProvider {
       }
 
       const hit = data.hits[0];
-      let snappedCoordinate: Coordinate | null = null;
+      let nearestPoint: Point | null = null;
 
       if (hit) {
         const candidate = [hit.point?.lng, hit.point?.lat];
@@ -147,14 +140,17 @@ export class GraphHopperProvider implements RoutingProvider {
           );
         }
 
-        snappedCoordinate = candidate;
+        nearestPoint = {
+          type: "Point",
+          coordinates: candidate,
+        };
       }
 
       points.push({
         sourceIndex,
         inputCoordinate: query.coordinates[sourceIndex],
-        snappedCoordinate,
-        distanceMeters: null,
+        nearestPoint,
+        distance: null,
         streetName:
           typeof hit?.name === "string"
             ? hit.name
@@ -209,10 +205,13 @@ export class GraphHopperProvider implements RoutingProvider {
         );
       }
 
-      isochrones.push({
-        value,
-        geometry: geometry as Polygon | MultiPolygon,
-      });
+      const normalizedGeometry = geometry as Polygon | MultiPolygon;
+
+      isochrones.push(
+        query.options.rangeType === "time"
+          ? { duration: value, geometry: normalizedGeometry }
+          : { distance: value, geometry: normalizedGeometry },
+      );
     }
 
     return { provider: this.name, isochrones };

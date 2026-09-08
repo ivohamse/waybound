@@ -1,3 +1,4 @@
+import type { Point } from "geojson";
 import type { BaseOptions, Coordinate, ProfileType } from "./common";
 
 export interface NearestOptions extends BaseOptions {
@@ -13,8 +14,8 @@ export interface NearestQuery {
 export interface NearestResult {
   sourceIndex: number;
   inputCoordinate: Coordinate;
-  snappedCoordinate: Coordinate | null;
-  distanceMeters: number | null;
+  nearestPoint: Point | null;
+  distance: number | null;
   streetName?: string;
 }
 

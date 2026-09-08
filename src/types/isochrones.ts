@@ -12,10 +12,13 @@ export interface IsochroneQuery {
   options: IsochroneOptions;
 }
 
-export interface IsochroneResult {
-  value: number;
+type IsochroneGeometry = {
   geometry: Polygon | MultiPolygon;
-}
+};
+
+export type IsochroneResult =
+  | (IsochroneGeometry & { duration: number })
+  | (IsochroneGeometry & { distance: number });
 
 export interface IsochroneResponse {
   provider: string;

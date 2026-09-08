@@ -13,12 +13,10 @@ export interface RouteQuery {
 }
 
 export interface RouteResult {
-  distanceMeters: number;
-  durationSeconds: number;
+  distance: number;
+  duration: number;
   geometry: LineString;
-  weight?: number;
   maneuvers?: Maneuver[];
-  waypointOrder?: number[];
 }
 
 export interface RouteResponse {
@@ -28,7 +26,7 @@ export interface RouteResponse {
 
 export interface Maneuver {
   instruction: string;
-  distanceMeters: number;
-  durationSeconds: number;
+  distance: number;
+  duration: number;
   coordinate: Coordinate;
 }

@@ -122,20 +122,26 @@ describe("OpenRouteServiceProvider", () => {
     expect(response.points[0]).toEqual({
       sourceIndex: 0,
       inputCoordinate: coordinates[0],
-      snappedCoordinate: [5.1215, 52.0907],
+      snappedPoint: {
+        type: "Point",
+        coordinates: [5.1215, 52.0907],
+      },
       distanceMeters: 7.5,
       streetName: "Street A",
     });
     expect(response.points[1]).toEqual({
       sourceIndex: 1,
       inputCoordinate: coordinates[1],
-      snappedCoordinate: null,
+      snappedPoint: null,
       distanceMeters: null,
     });
     expect(response.points[2]).toEqual({
       sourceIndex: 2,
       inputCoordinate: coordinates[2],
-      snappedCoordinate: [5.1281, 52.0851],
+      snappedPoint: {
+        type: "Point",
+        coordinates: [5.1281, 52.0851],
+      },
       distanceMeters: 4,
       streetName: undefined,
     });

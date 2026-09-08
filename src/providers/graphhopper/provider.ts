@@ -1,4 +1,4 @@
-import type { LineString, MultiPolygon, Polygon } from "geojson";
+import type { LineString, MultiPolygon, Point, Polygon } from "geojson";
 import type {
   RoutingProvider,
   RouteQuery,
@@ -136,7 +136,7 @@ export class GraphHopperProvider implements RoutingProvider {
       }
 
       const hit = data.hits[0];
-      let snappedCoordinate: Coordinate | null = null;
+      let snappedPoint: Point | null = null;
 
       if (hit) {
         const candidate = [hit.point?.lng, hit.point?.lat];
@@ -147,13 +147,16 @@ export class GraphHopperProvider implements RoutingProvider {
           );
         }
 
-        snappedCoordinate = candidate;
+        snappedPoint = {
+          type: "Point",
+          coordinates: candidate,
+        };
       }
 
       points.push({
         sourceIndex,
         inputCoordinate: query.coordinates[sourceIndex],
-        snappedCoordinate,
+        snappedPoint,
         distanceMeters: null,
         streetName:
           typeof hit?.name === "string"

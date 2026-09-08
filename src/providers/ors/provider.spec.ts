@@ -41,9 +41,10 @@ describe("OpenRouteServiceProvider", () => {
     const route = response.routes[0];
 
     expect(response.provider).toBe("OpenRouteService");
-    expect(route.distanceMeters).toBe(1250.5);
-    expect(route.durationSeconds).toBe(180);
-    expect(route.weight).toBe(42);
+    expect(route.distance).toBe(1250.5);
+    expect(route.duration).toBe(180);
+    expect(route).not.toHaveProperty("weight");
+    expect(route).not.toHaveProperty("waypointOrder");
     expect(route.geometry.type).toBe("LineString");
   });
 
@@ -86,9 +87,11 @@ describe("OpenRouteServiceProvider", () => {
       options: { instructions: true },
     });
 
-    expect(response.routes[0].maneuvers?.[0].coordinate).toEqual([
-      5.11, 52.09,
-    ]);
+    expect(response.routes[0].maneuvers?.[0]).toMatchObject({
+      distance: 200,
+      duration: 15,
+      coordinate: [5.11, 52.09],
+    });
   });
 
   it("maps ORS JSON snap results one-to-one to input coordinates", async () => {
@@ -122,27 +125,27 @@ describe("OpenRouteServiceProvider", () => {
     expect(response.points[0]).toEqual({
       sourceIndex: 0,
       inputCoordinate: coordinates[0],
-      snappedPoint: {
+      nearestPoint: {
         type: "Point",
         coordinates: [5.1215, 52.0907],
       },
-      distanceMeters: 7.5,
+      distance: 7.5,
       streetName: "Street A",
     });
     expect(response.points[1]).toEqual({
       sourceIndex: 1,
       inputCoordinate: coordinates[1],
-      snappedPoint: null,
-      distanceMeters: null,
+      nearestPoint: null,
+      distance: null,
     });
     expect(response.points[2]).toEqual({
       sourceIndex: 2,
       inputCoordinate: coordinates[2],
-      snappedPoint: {
+      nearestPoint: {
         type: "Point",
         coordinates: [5.1281, 52.0851],
       },
-      distanceMeters: 4,
+      distance: 4,
       streetName: undefined,
     });
   });
@@ -169,6 +172,36 @@ describe("OpenRouteServiceProvider", () => {
 
     expect(response.durations[0][1]).toBeNull();
     expect(response.distances[0][1]).toBeNull();
+  });
+
+  it("maps isochrone values to duration or distance", async () => {
+    const polygon = {
+      type: "Polygon" as const,
+      coordinates: [
+        [
+          [5.12, 52.09],
+          [5.13, 52.09],
+          [5.13, 52.1],
+          [5.12, 52.1],
+          [5.12, 52.09],
+        ],
+      ],
+    };
+
+    vi.spyOn(HttpClient.prototype, "execute").mockResolvedValue({
+      features: [{ properties: { value: 300 }, geometry: polygon }],
+    });
+
+    const response = await provider.getIsochrones({
+      coordinate: [5.12, 52.09],
+      profile: "bike",
+      options: { rangeType: "time", ranges: [300] },
+    });
+
+    expect(response.isochrones[0]).toMatchObject({
+      duration: 300,
+      geometry: polygon,
+    });
   });
 
   it("throws INVALID_RESPONSE for malformed provider data", async () => {

@@ -3,11 +3,11 @@ import maplibregl from "maplibre-gl";
 const isochroneColorExpression = [
   "match",
   ["get", "index"],
-  0, "#22c55e",
-  1, "#eab308",
-  2, "#f97316",
-  3, "#ef4444",
-  4, "#a855f7",
+  0, "#eab308",
+  1, "#f97316",
+  2, "#ef4444",
+  3, "#db2777",
+  4, "#9333ea",
   "#2563eb",
 ] as const;
 

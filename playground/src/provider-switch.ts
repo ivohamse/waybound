@@ -1,3 +1,5 @@
+import "./provider-switch.css";
+
 const providerSwitch = document.querySelector<HTMLButtonElement>("#provider-switch");
 
 if (providerSwitch) {

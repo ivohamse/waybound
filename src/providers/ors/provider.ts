@@ -144,7 +144,7 @@ export class OpenRouteServiceProvider implements RoutingProvider {
         return {
           sourceIndex,
           inputCoordinate,
-          snappedCoordinate: null,
+          snappedPoint: null,
           distanceMeters: null,
         };
       }
@@ -169,7 +169,10 @@ export class OpenRouteServiceProvider implements RoutingProvider {
       return {
         sourceIndex,
         inputCoordinate,
-        snappedCoordinate: [location.location[0], location.location[1]],
+        snappedPoint: {
+          type: "Point",
+          coordinates: [location.location[0], location.location[1]],
+        },
         distanceMeters: location.snapped_distance ?? null,
         streetName: location.name,
       };

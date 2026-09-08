@@ -35,8 +35,8 @@ describe("OpenRouteService live integration", () => {
     expect(response.routes.length).toBeGreaterThan(0);
 
     const route = response.routes[0];
-    expect(route.distanceMeters).toBeGreaterThan(0);
-    expect(route.durationSeconds).toBeGreaterThan(0);
+    expect(route.distance).toBeGreaterThan(0);
+    expect(route.duration).toBeGreaterThan(0);
     expect(route.geometry.type).toBe("LineString");
     expect(route.geometry.coordinates.length).toBeGreaterThan(1);
     expect(route.maneuvers?.length ?? 0).toBeGreaterThan(0);
@@ -56,11 +56,11 @@ describe("OpenRouteService live integration", () => {
     for (const [index, point] of response.points.entries()) {
       expect(point.sourceIndex).toBe(index);
       expect(point.inputCoordinate).toEqual(coordinates[index]);
-      expect(point.snappedPoint).not.toBeNull();
-      expect(point.snappedPoint?.type).toBe("Point");
-      expect(point.snappedPoint?.coordinates).toHaveLength(2);
-      expect(point.distanceMeters).not.toBeNull();
-      expect(point.distanceMeters).toBeGreaterThanOrEqual(0);
+      expect(point.nearestPoint).not.toBeNull();
+      expect(point.nearestPoint?.type).toBe("Point");
+      expect(point.nearestPoint?.coordinates).toHaveLength(2);
+      expect(point.distance).not.toBeNull();
+      expect(point.distance).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -116,7 +116,10 @@ describe("OpenRouteService live integration", () => {
 
     for (const isochrone of response.isochrones) {
       expect(["Polygon", "MultiPolygon"]).toContain(isochrone.geometry.type);
-      expect(isochrone.value).toBeGreaterThan(0);
+      expect("duration" in isochrone).toBe(true);
+      if ("duration" in isochrone) {
+        expect(isochrone.duration).toBeGreaterThan(0);
+      }
     }
   });
 });

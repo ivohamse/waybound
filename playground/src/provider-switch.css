@@ -1,16 +1,23 @@
-.provider-switch-wrap {
+.provider-select-wrap {
   display: grid;
   gap: 4px;
+  margin-right: auto;
   font-size: 11px;
   color: #64748b;
 }
 
-.provider-switch-wrap > span {
+.provider-select-wrap > span {
   line-height: 1;
 }
 
-.provider-switch {
+.provider-select-wrap select {
+  height: 38px;
   min-width: 148px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
   font-size: 13px;
-  font-weight: 600;
 }

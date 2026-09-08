@@ -14,6 +14,12 @@ import type { HttpClientOptions } from "#http";
 import { GraphHopperProvider, OpenRouteServiceProvider } from "#providers";
 import type { CapabilityOption, ProviderCapabilities } from "./capabilities";
 import { WayboundError } from "./errors";
+import {
+  validateIsochroneQuery,
+  validateMatrixQuery,
+  validateNearestQuery,
+  validateRouteQuery,
+} from "./query-validation";
 
 export type ProviderType = "ors" | "graphhopper";
 export type CapabilityFeature = keyof ProviderCapabilities;
@@ -70,8 +76,7 @@ export class Router {
 
     if (options) {
       const unsupportedOption = Object.keys(options).find(
-        (option) =>
-          !capability.options.includes(option as CapabilityOption),
+        (option) => !capability.options.includes(option as CapabilityOption),
       );
 
       if (unsupportedOption) {
@@ -102,6 +107,7 @@ export class Router {
   }
 
   public async getRoute(query: RouteQuery): Promise<RouteResponse> {
+    validateRouteQuery(query);
     this.assertCapability("directions", query.profile, query.options);
 
     try {
@@ -112,6 +118,7 @@ export class Router {
   }
 
   public async getNearest(query: NearestQuery): Promise<NearestResponse> {
+    validateNearestQuery(query);
     this.assertCapability("nearest", query.profile, query.options);
 
     try {
@@ -122,6 +129,7 @@ export class Router {
   }
 
   public async getMatrix(query: MatrixQuery): Promise<MatrixResponse> {
+    validateMatrixQuery(query);
     this.assertCapability("matrix", query.profile, query.options);
 
     try {
@@ -134,6 +142,7 @@ export class Router {
   public async getIsochrones(
     query: IsochroneQuery,
   ): Promise<IsochroneResponse> {
+    validateIsochroneQuery(query);
     this.assertCapability("isochrones", query.profile, query.options);
 
     try {

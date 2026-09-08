@@ -133,6 +133,7 @@ button, select, input { font: inherit; }
 #map {
   position: absolute;
   inset: 0;
+  cursor: crosshair;
 }
 
 .map-help {

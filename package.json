@@ -31,6 +31,14 @@
     "prepublishOnly": "npm test && npm run build",
     "yalc:push": "npm run build && yalc push"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ivohamse/waybound.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ivohamse/waybound/issues"
+  },
+  "homepage": "https://github.com/ivohamse/waybound#readme",
   "keywords": [
     "routing",
     "geojson",
@@ -40,7 +48,6 @@
     "hike",
     "bike"
   ],
-  "author": "",
   "license": "MIT",
   "publishConfig": {
     "access": "public",

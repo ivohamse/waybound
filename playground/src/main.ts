@@ -15,16 +15,21 @@ interface PlaygroundState {
   map?: Map;
 }
 
+const storedProvider = readLocalStorage("waybound-playground-provider");
+const initialProvider: ProviderType = storedProvider === "graphhopper" ? "graphhopper" : "ors";
+
 const state: PlaygroundState = {
-  provider: "ors",
+  provider: initialProvider,
   profile: "hike",
   feature: "route",
   coordinates: [],
   apiKeys: {
-    ors: import.meta.env.VITE_ORS_API_KEY ?? "",
-    graphhopper: import.meta.env.VITE_GRAPHHOPPER_API_KEY ?? "",
+    ors: readSessionStorage("waybound-playground-api-key-ors") ?? import.meta.env.VITE_ORS_API_KEY ?? "",
+    graphhopper: readSessionStorage("waybound-playground-api-key-graphhopper") ?? import.meta.env.VITE_GRAPHHOPPER_API_KEY ?? "",
   },
 };
+
+let providerDialogRequired = true;
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing #app element");
@@ -41,13 +46,7 @@ app.innerHTML = `
       </div>
 
       <div class="toolbar-controls">
-        <label>
-          <span>Provider</span>
-          <select id="provider">
-            <option value="ors">OpenRouteService</option>
-            <option value="graphhopper">GraphHopper</option>
-          </select>
-        </label>
+        <button id="provider-switch" class="provider-switch" type="button"></button>
 
         <label>
           <span>Profile</span>
@@ -70,11 +69,6 @@ app.innerHTML = `
 
         <div id="feature-options" class="feature-options"></div>
 
-        <label class="api-key-field">
-          <span>API key <small>optional here</small></span>
-          <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="ORS API key" />
-        </label>
-
         <button id="run" class="primary" type="button">Run route</button>
         <button id="clear" type="button">Clear</button>
       </div>
@@ -89,7 +83,7 @@ app.innerHTML = `
       <aside class="result-panel">
         <div class="status-row">
           <span id="result-title" class="eyebrow">Route result</span>
-          <span id="provider-badge" class="badge">ORS</span>
+          <span id="provider-badge" class="badge"></span>
         </div>
 
         <div id="empty-state" class="empty-state">
@@ -102,13 +96,42 @@ app.innerHTML = `
       </aside>
     </main>
   </div>
+
+  <div id="provider-modal" class="modal-backdrop hidden" role="presentation">
+    <section class="provider-dialog" role="dialog" aria-modal="true" aria-labelledby="provider-dialog-title">
+      <div class="dialog-heading">
+        <span class="eyebrow">Routing backend</span>
+        <h2 id="provider-dialog-title">Choose a provider</h2>
+        <p>Select the provider and credentials you want to use in this playground session.</p>
+      </div>
+
+      <label class="dialog-field">
+        <span>Provider</span>
+        <select id="dialog-provider">
+          <option value="ors">OpenRouteService</option>
+          <option value="graphhopper">GraphHopper</option>
+        </select>
+      </label>
+
+      <label class="dialog-field">
+        <span>API key <small>optional where supported</small></span>
+        <input id="dialog-api-key" type="password" autocomplete="off" spellcheck="false" />
+      </label>
+
+      <p class="dialog-note">The provider choice is remembered on this device. The API key is kept only for this browser session.</p>
+
+      <div class="dialog-actions">
+        <button id="dialog-cancel" type="button">Cancel</button>
+        <button id="dialog-confirm" class="primary" type="button">Use provider</button>
+      </div>
+    </section>
+  </div>
 `;
 
-const providerSelect = document.querySelector<HTMLSelectElement>("#provider")!;
 const profileSelect = document.querySelector<HTMLSelectElement>("#profile")!;
 const featureSelect = document.querySelector<HTMLSelectElement>("#feature")!;
 const featureOptions = document.querySelector<HTMLDivElement>("#feature-options")!;
-const apiKeyInput = document.querySelector<HTMLInputElement>("#api-key")!;
+const providerSwitch = document.querySelector<HTMLButtonElement>("#provider-switch")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clear")!;
 const help = document.querySelector<HTMLDivElement>("#map-help")!;
@@ -118,8 +141,11 @@ const emptyState = document.querySelector<HTMLDivElement>("#empty-state")!;
 const emptyCopy = document.querySelector<HTMLParagraphElement>("#empty-copy")!;
 const result = document.querySelector<HTMLDivElement>("#result")!;
 const errorBox = document.querySelector<HTMLDivElement>("#error")!;
-
-apiKeyInput.value = state.apiKeys.ors ?? "";
+const providerModal = document.querySelector<HTMLDivElement>("#provider-modal")!;
+const dialogProvider = document.querySelector<HTMLSelectElement>("#dialog-provider")!;
+const dialogApiKey = document.querySelector<HTMLInputElement>("#dialog-api-key")!;
+const dialogCancel = document.querySelector<HTMLButtonElement>("#dialog-cancel")!;
+const dialogConfirm = document.querySelector<HTMLButtonElement>("#dialog-confirm")!;
 
 const map = new maplibregl.Map({
   container: "map",
@@ -171,15 +197,6 @@ map.on("click", (event) => {
   updateHelp();
 });
 
-providerSelect.addEventListener("change", () => {
-  state.apiKeys[state.provider] = apiKeyInput.value.trim();
-  state.provider = providerSelect.value as ProviderType;
-  apiKeyInput.value = state.apiKeys[state.provider] ?? "";
-  apiKeyInput.placeholder = state.provider === "ors" ? "ORS API key" : "GraphHopper API key";
-  providerBadge.textContent = providerLabel();
-  clearResult(false);
-});
-
 profileSelect.addEventListener("change", () => {
   state.profile = profileSelect.value as ProfileType;
   clearResult(false);
@@ -196,8 +213,15 @@ featureSelect.addEventListener("change", () => {
   updateHelp();
 });
 
-apiKeyInput.addEventListener("input", () => {
-  state.apiKeys[state.provider] = apiKeyInput.value.trim();
+providerSwitch.addEventListener("click", () => openProviderDialog(false));
+dialogProvider.addEventListener("change", syncDialogApiKey);
+dialogConfirm.addEventListener("click", confirmProviderDialog);
+dialogCancel.addEventListener("click", closeProviderDialog);
+providerModal.addEventListener("click", (event) => {
+  if (event.target === providerModal && !providerDialogRequired) closeProviderDialog();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !providerModal.classList.contains("hidden") && !providerDialogRequired) closeProviderDialog();
 });
 
 clearButton.addEventListener("click", clearAll);
@@ -205,6 +229,49 @@ runButton.addEventListener("click", runFeature);
 
 renderFeatureOptions();
 updateFeatureUi();
+updateProviderUi();
+openProviderDialog(true);
+
+function openProviderDialog(required: boolean): void {
+  providerDialogRequired = required;
+  dialogProvider.value = state.provider;
+  syncDialogApiKey();
+  dialogCancel.classList.toggle("hidden", required);
+  providerModal.classList.remove("hidden");
+  window.setTimeout(() => dialogProvider.focus(), 0);
+}
+
+function closeProviderDialog(): void {
+  if (providerDialogRequired) return;
+  providerModal.classList.add("hidden");
+}
+
+function syncDialogApiKey(): void {
+  const provider = dialogProvider.value as ProviderType;
+  dialogApiKey.value = state.apiKeys[provider] ?? "";
+  dialogApiKey.placeholder = provider === "ors" ? "ORS API key" : "GraphHopper API key";
+}
+
+function confirmProviderDialog(): void {
+  const provider = dialogProvider.value as ProviderType;
+  const apiKey = dialogApiKey.value.trim();
+
+  state.provider = provider;
+  state.apiKeys[provider] = apiKey;
+  writeLocalStorage("waybound-playground-provider", provider);
+  writeSessionStorage(`waybound-playground-api-key-${provider}`, apiKey);
+
+  providerDialogRequired = false;
+  providerModal.classList.add("hidden");
+  updateProviderUi();
+  clearResult(false);
+}
+
+function updateProviderUi(): void {
+  const label = providerLabel();
+  providerSwitch.textContent = `${label} ▾`;
+  providerBadge.textContent = label;
+}
 
 function addGeoJsonSource(id: string): void {
   map.addSource(id, { type: "geojson", data: emptyFeatureCollection() });
@@ -321,7 +388,7 @@ async function runFeature(): Promise<void> {
     return;
   }
 
-  const apiKey = apiKeyInput.value.trim();
+  const apiKey = state.apiKeys[state.provider] ?? "";
   runButton.disabled = true;
   const idleLabel = runButton.textContent ?? "Run";
   runButton.textContent = "Running…";
@@ -536,4 +603,37 @@ function formatCoordinate(coordinate?: Coordinate): string {
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '\"': "&quot;" })[char] ?? char);
+}
+
+function readLocalStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Storage can be unavailable in restrictive browser contexts.
+  }
+}
+
+function readSessionStorage(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionStorage(key: string, value: string): void {
+  try {
+    if (value) sessionStorage.setItem(key, value);
+    else sessionStorage.removeItem(key);
+  } catch {
+    // Storage can be unavailable in restrictive browser contexts.
+  }
 }

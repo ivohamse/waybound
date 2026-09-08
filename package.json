@@ -1,6 +1,6 @@
 {
   "name": "waybound",
-  "version": "0.3.3",
+  "version": "0.4.0-alpha.1",
   "description": "A unified, multi-provider routing and geospatial engine for TypeScript.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -28,6 +28,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "vitest run --config vitest.live.config.mts",
+    "prepublishOnly": "npm test && npm run build",
     "yalc:push": "npm run build && yalc push"
   },
   "keywords": [
@@ -41,6 +42,10 @@
   ],
   "author": "",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
   "devDependencies": {
     "@types/geojson": "latest",
     "@types/node": "^26.5.0",

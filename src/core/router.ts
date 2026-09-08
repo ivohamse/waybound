@@ -12,7 +12,7 @@ import type {
 } from "#types";
 import type { HttpClientOptions } from "#http";
 import { GraphHopperProvider, OpenRouteServiceProvider } from "#providers";
-import type { ProviderCapabilities } from "./capabilities";
+import type { CapabilityOption, ProviderCapabilities } from "./capabilities";
 import { WayboundError } from "./errors";
 
 export type ProviderType = "ors" | "graphhopper";
@@ -48,6 +48,7 @@ export class Router {
   private assertCapability(
     feature: CapabilityFeature,
     profile: ProfileType,
+    options?: object,
   ): void {
     const capability = this.activeProvider.capabilities[feature];
 
@@ -65,6 +66,21 @@ export class Router {
         `[waybound -> ${this.activeProvider.name}] Profile "${profile}" is not supported for ${feature}.`,
         { provider: this.activeProvider.name },
       );
+    }
+
+    if (options) {
+      const unsupportedOption = Object.keys(options).find(
+        (option) =>
+          !capability.options.includes(option as CapabilityOption),
+      );
+
+      if (unsupportedOption) {
+        throw new WayboundError(
+          "UNSUPPORTED_OPTION",
+          `[waybound -> ${this.activeProvider.name}] Option "${unsupportedOption}" is not supported for ${feature}.`,
+          { provider: this.activeProvider.name },
+        );
+      }
     }
   }
 
@@ -86,7 +102,7 @@ export class Router {
   }
 
   public async getRoute(query: RouteQuery): Promise<RouteResponse> {
-    this.assertCapability("directions", query.profile);
+    this.assertCapability("directions", query.profile, query.options);
 
     try {
       return await this.activeProvider.getRoute(query);
@@ -96,7 +112,7 @@ export class Router {
   }
 
   public async getNearest(query: NearestQuery): Promise<NearestResponse> {
-    this.assertCapability("nearest", query.profile);
+    this.assertCapability("nearest", query.profile, query.options);
 
     try {
       return await this.activeProvider.getNearest(query);
@@ -106,7 +122,7 @@ export class Router {
   }
 
   public async getMatrix(query: MatrixQuery): Promise<MatrixResponse> {
-    this.assertCapability("matrix", query.profile);
+    this.assertCapability("matrix", query.profile, query.options);
 
     try {
       return await this.activeProvider.getMatrix(query);
@@ -118,7 +134,7 @@ export class Router {
   public async getIsochrones(
     query: IsochroneQuery,
   ): Promise<IsochroneResponse> {
-    this.assertCapability("isochrones", query.profile);
+    this.assertCapability("isochrones", query.profile, query.options);
 
     try {
       return await this.activeProvider.getIsochrones(query);

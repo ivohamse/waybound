@@ -1,10 +1,18 @@
 import type { ProfileType } from "#types";
 
 export type CapabilitySemantics = "native" | "approximation";
+export type CapabilityOption =
+  | "language"
+  | "elevation"
+  | "instructions"
+  | "radius"
+  | "rangeType"
+  | "ranges";
 
 export interface FeatureCapability {
   readonly supported: boolean;
   readonly profiles: readonly ProfileType[];
+  readonly options: readonly CapabilityOption[];
   readonly semantics?: CapabilitySemantics;
   readonly notes?: string;
 }

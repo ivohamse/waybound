@@ -1,6 +1,5 @@
 export { Router, WayboundError } from "#core";
 export type {
-  CapabilityFeature,
   CapabilityOption,
   CapabilitySemantics,
   FeatureCapability,
@@ -8,7 +7,6 @@ export type {
   ProviderType,
   RouterConfig,
   WayboundErrorCode,
-  WayboundErrorOptions,
 } from "#core";
 export type {
   Coordinate,

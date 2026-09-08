@@ -133,6 +133,9 @@ button, select, input { font: inherit; }
 #map {
   position: absolute;
   inset: 0;
+}
+
+#map .maplibregl-canvas {
   cursor: crosshair;
 }
 

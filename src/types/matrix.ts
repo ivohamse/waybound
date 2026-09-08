@@ -1,6 +1,6 @@
-import type { BaseOptions, Coordinate, ProfileType } from "./common";
+import type { Coordinate, ProfileType } from "./common";
 
-export interface MatrixOptions extends BaseOptions {}
+export interface MatrixOptions {}
 
 export interface MatrixQuery {
   coordinates: Coordinate[];

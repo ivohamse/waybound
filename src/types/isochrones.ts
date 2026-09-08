@@ -1,7 +1,7 @@
 import type { MultiPolygon, Polygon } from "geojson";
-import type { BaseOptions, Coordinate, ProfileType } from "./common";
+import type { Coordinate, ProfileType } from "./common";
 
-export interface IsochroneOptions extends BaseOptions {
+export interface IsochroneOptions {
   rangeType: "time" | "distance";
   ranges: number[];
 }

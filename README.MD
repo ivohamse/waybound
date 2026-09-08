@@ -56,8 +56,8 @@ async function main() {
   });
 
   const mainRoute = routeResponse.routes[0];
-  console.log(`Distance: ${mainRoute.distanceMeters}m`);
-  console.log(`Duration: ${mainRoute.durationSeconds}s`);
+  console.log(`Distance: ${mainRoute.distance}m`);
+  console.log(`Duration: ${mainRoute.duration}s`);
   console.log(mainRoute.geometry.type); // "LineString"
 
   const nearestResponse = await router.getNearest({
@@ -66,8 +66,8 @@ async function main() {
     options: { radius: 500 },
   });
 
-  console.log(nearestResponse.points[0].snappedPoint?.type); // "Point"
-  console.log(nearestResponse.points[0].snappedPoint?.coordinates);
+  console.log(nearestResponse.points[0].nearestPoint?.type); // "Point"
+  console.log(nearestResponse.points[0].nearestPoint?.coordinates);
 
   const isoResponse = await router.getIsochrones({
     coordinate: [5.12142, 52.09063],
@@ -96,10 +96,12 @@ Input coordinates use the ergonomic Waybound tuple form:
 type Coordinate = [longitude: number, latitude: number];
 ```
 
+Waybound uses meters for all distances and seconds for all durations throughout its public API.
+
 Geometric response fields use GeoJSON geometry objects where they represent standalone geometry:
 
 - `RouteResult.geometry` → `LineString`
-- `NearestResult.snappedPoint` → `Point | null`
+- `NearestResult.nearestPoint` → `Point | null`
 - `IsochroneResult.geometry` → `Polygon | MultiPolygon`
 
 `inputCoordinate` and maneuver coordinates remain coordinate tuples because they represent input/metadata positions rather than standalone geometry results.

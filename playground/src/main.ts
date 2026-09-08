@@ -223,7 +223,17 @@ function minPointsForFeature(): number {
 
 function renderFeatureOptions(): void {
   if (state.feature === "route") {
-    featureOptions.innerHTML = `<label><span>Instructions</span><select id="instructions"><option value="yes">On</option><option value="no">Off</option></select></label>`;
+    const browserLanguage = getBrowserLanguage();
+    featureOptions.innerHTML = `
+      <label><span>Instructions</span><select id="instructions"><option value="yes">On</option><option value="no">Off</option></select></label>
+      <label><span>Language</span><select id="language">
+        <option value="${browserLanguage}">Browser (${browserLanguage})</option>
+        <option value="nl">nl</option>
+        <option value="en">en</option>
+        <option value="de">de</option>
+        <option value="fr">fr</option>
+      </select></label>
+    `;
   } else if (state.feature === "nearest") {
     featureOptions.innerHTML = `<label><span>Radius (m)</span><input id="radius" type="number" min="1" step="1" placeholder="default" /></label>`;
   } else if (state.feature === "isochrones") {
@@ -344,7 +354,8 @@ async function runFeature(): Promise<void> {
 async function runRoute(router: Router): Promise<void> {
   if (state.coordinates.length !== 2) throw new Error("Route requires exactly two selected points in the playground.");
   const instructions = document.querySelector<HTMLSelectElement>("#instructions")?.value !== "no";
-  const response = await router.getRoute({ coordinates: state.coordinates, profile: state.profile, options: { instructions } });
+  const language = document.querySelector<HTMLSelectElement>("#language")?.value ?? getBrowserLanguage();
+  const response = await router.getRoute({ coordinates: state.coordinates, profile: state.profile, options: { instructions, language } });
   const route = response.routes[0];
   if (!route) throw new Error("Provider returned no route.");
 
@@ -493,6 +504,11 @@ function showError(message: string): void {
   errorBox.classList.remove("hidden");
 }
 
+function getBrowserLanguage(): string {
+  const language = navigator.language?.trim().toLowerCase();
+  return language ? language.split("-")[0] : "en";
+}
+
 function providerLabel(): string {
   return state.provider === "ors" ? "ORS" : "GraphHopper";
 }
@@ -519,5 +535,5 @@ function formatCoordinate(coordinate?: Coordinate): string {
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char] ?? char);
+  return value.replace(/[&<>'\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '\"': "&quot;" })[char] ?? char);
 }

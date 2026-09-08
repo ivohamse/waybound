@@ -46,8 +46,9 @@ describe("GraphHopper live integration", () => {
 
     for (const point of response.points) {
       expect(point.inputCoordinate).toEqual(coordinates[point.sourceIndex]);
-      expect(point.snappedCoordinate).not.toBeNull();
-      expect(point.snappedCoordinate).toHaveLength(2);
+      expect(point.snappedPoint).not.toBeNull();
+      expect(point.snappedPoint?.type).toBe("Point");
+      expect(point.snappedPoint?.coordinates).toHaveLength(2);
       expect(point.distanceMeters).toBeNull();
     }
   });

@@ -14,7 +14,7 @@ const router = new Router({
   apiKey,
   http: {
     timeoutMs: 5_000,
-    maxRetries: 1,
+    maxRetries: 0,
   },
 });
 

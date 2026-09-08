@@ -109,14 +109,17 @@ describe("GraphHopperProvider", () => {
     expect(response.points[0]).toMatchObject({
       sourceIndex: 0,
       inputCoordinate: coordinates[0],
-      snappedCoordinate: [5.1215, 52.0907],
+      snappedPoint: {
+        type: "Point",
+        coordinates: [5.1215, 52.0907],
+      },
       distanceMeters: null,
       streetName: "A",
     });
     expect(response.points[1]).toMatchObject({
       sourceIndex: 1,
       inputCoordinate: coordinates[1],
-      snappedCoordinate: null,
+      snappedPoint: null,
       distanceMeters: null,
     });
   });

@@ -323,10 +323,18 @@ async function runFeature(): Promise<void> {
     if (state.feature === "matrix") await runMatrix(router);
     if (state.feature === "isochrones") await runIsochrones(router);
   } catch (error) {
-    const message = error instanceof WayboundError
-      ? `${error.code}: ${error.message}`
-      : error instanceof Error ? error.message : String(error);
-    showError(message);
+    if (error instanceof WayboundError) {
+      const details = [
+        error.code,
+        `Provider: ${error.provider ?? providerLabel()}`,
+        `HTTP: ${error.status ?? "—"}`,
+        "",
+        error.message,
+      ];
+      showError(details.join("\n"));
+    } else {
+      showError(error instanceof Error ? error.message : String(error));
+    }
   } finally {
     runButton.disabled = false;
     runButton.textContent = idleLabel;

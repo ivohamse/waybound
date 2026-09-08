@@ -1,6 +1,6 @@
 {
   "name": "waybound",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A unified, multi-provider routing and geospatial engine for TypeScript.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

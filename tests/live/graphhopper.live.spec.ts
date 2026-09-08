@@ -95,10 +95,18 @@ describe("GraphHopper live integration", () => {
     } catch (error) {
       expect(error).toMatchObject({
         name: "WayboundError",
-        code: "PROVIDER_ERROR",
         provider: "GraphHopper",
-        status: 400,
       });
+
+      const typedError = error as { code?: string; status?: number };
+      expect(["PROVIDER_ERROR", "RATE_LIMITED"]).toContain(typedError.code);
+
+      if (typedError.code === "PROVIDER_ERROR") {
+        expect(typedError.status).toBe(400);
+      } else {
+        expect(typedError.status).toBe(429);
+      }
+
       return;
     }
 

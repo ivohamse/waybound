@@ -1,29 +1,72 @@
 import "./provider-switch.css";
 
 const providerSwitch = document.querySelector<HTMLButtonElement>("#provider-switch");
+const toolbar = document.querySelector<HTMLElement>(".toolbar");
+const toolbarControls = document.querySelector<HTMLElement>(".toolbar-controls");
+const providerModal = document.querySelector<HTMLDivElement>("#provider-modal");
+const dialogProvider = document.querySelector<HTMLSelectElement>("#dialog-provider");
+const dialogApiKey = document.querySelector<HTMLInputElement>("#dialog-api-key");
+const dialogConfirm = document.querySelector<HTMLButtonElement>("#dialog-confirm");
 
-if (providerSwitch) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "provider-switch-wrap";
+if (
+  providerSwitch &&
+  toolbar &&
+  toolbarControls &&
+  providerModal &&
+  dialogProvider &&
+  dialogApiKey &&
+  dialogConfirm
+) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "provider-select-wrap";
+  wrapper.innerHTML = `
+    <span>Provider</span>
+    <select id="provider-select" aria-label="Provider">
+      <option value="ors">OpenRouteService</option>
+      <option value="graphhopper">GraphHopper</option>
+    </select>
+  `;
 
-  const label = document.createElement("span");
-  label.textContent = "Provider";
+  toolbar.insertBefore(wrapper, toolbarControls);
+  providerSwitch.classList.add("hidden");
 
-  providerSwitch.parentElement?.insertBefore(wrapper, providerSwitch);
-  wrapper.append(label, providerSwitch);
+  const providerSelect = wrapper.querySelector<HTMLSelectElement>("#provider-select")!;
+  const storedProvider = localStorage.getItem("waybound-playground-provider");
+  providerSelect.value = storedProvider === "graphhopper" ? "graphhopper" : "ors";
 
-  const syncProviderName = (): void => {
-    const text = providerSwitch.textContent ?? "";
-    if (text.startsWith("ORS")) {
-      providerSwitch.textContent = text.replace(/^ORS/, "OpenRouteService");
+  const syncFromActiveProvider = (): void => {
+    const activeProvider = localStorage.getItem("waybound-playground-provider");
+    if (activeProvider === "ors" || activeProvider === "graphhopper") {
+      providerSelect.value = activeProvider;
     }
   };
 
-  new MutationObserver(syncProviderName).observe(providerSwitch, {
-    childList: true,
-    characterData: true,
-    subtree: true,
+  const prepareDialogProvider = (provider: "ors" | "graphhopper"): void => {
+    dialogProvider.value = provider;
+    dialogProvider.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  providerSelect.addEventListener("change", () => {
+    const selectedProvider = providerSelect.value as "ors" | "graphhopper";
+    const previousProvider = localStorage.getItem("waybound-playground-provider");
+
+    if (selectedProvider === previousProvider) return;
+
+    prepareDialogProvider(selectedProvider);
+
+    if (dialogApiKey.value.trim()) {
+      dialogConfirm.click();
+      syncFromActiveProvider();
+      return;
+    }
+
+    providerSwitch.click();
+    prepareDialogProvider(selectedProvider);
   });
 
-  syncProviderName();
+  new MutationObserver(() => {
+    if (providerModal.classList.contains("hidden")) {
+      syncFromActiveProvider();
+    }
+  }).observe(providerModal, { attributes: true, attributeFilter: ["class"] });
 }

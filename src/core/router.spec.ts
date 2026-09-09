@@ -115,4 +115,31 @@ describe("Router provider injection", () => {
     provider.getRoute.mockRejectedValueOnce(error);
     await expect(router.getRoute(query)).rejects.toBe(error);
   });
+
+  it("records normal calls without sending a second availability request", async () => {
+    const provider = makeProvider();
+    const router = new Router({ provider });
+
+    await router.getRoute(query);
+
+    expect(provider.getRoute).toHaveBeenCalledOnce();
+    expect(router.getObservedAvailability("directions", "hike")).toMatchObject({
+      availability: "available", reason: null,
+    });
+  });
+
+  it("probes once and reuses the one-hour observation cache", async () => {
+    const provider = makeProvider();
+    const router = new Router({ provider });
+    const options = {
+      coordinates: [[5.12, 52.09], [5.11, 52.10]] as [[number, number], [number, number]],
+      targets: [{ feature: "isochrones" as const, profile: "hike" as const }],
+    };
+
+    await router.probeCapabilities(options);
+    await router.probeCapabilities(options);
+
+    expect(provider.getIsochrones).toHaveBeenCalledOnce();
+    expect(router.getObservedAvailability("isochrones", "hike")?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
 });

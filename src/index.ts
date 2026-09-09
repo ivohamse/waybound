@@ -2,6 +2,11 @@ export { Router, WayboundError } from "#core";
 export type {
   CapabilityOption,
   CapabilitySemantics,
+  CapabilityAvailability,
+  AvailabilityReason,
+  ObservedCapabilityAvailability,
+  CapabilityProbeTarget,
+  CapabilityProbeOptions,
   FeatureCapability,
   ProviderCapabilities,
   RouterConfig,

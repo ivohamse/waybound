@@ -131,6 +131,28 @@ The endpoint's enabled features and authentication policy remain the consumer's
 responsibility; static capabilities describe the adapter, not a particular account
 or server deployment.
 
+### Observed availability
+
+`capabilities` describes adapter support. To inspect what a configured endpoint and
+credentials have actually allowed, use `probeCapabilities`. Probing is always
+explicit; normal requests never send a second availability request. Successful and
+failed normal requests update the same in-memory observation cache, which is scoped
+to the provider instance and expires after one hour.
+
+```ts
+const observations = await router.probeCapabilities({
+  coordinates: [[5.12142, 52.09063], [5.11142, 52.09]],
+  targets: [{ feature: "isochrones", profile: "hike" }],
+});
+
+const isochrones = router.getObservedAvailability("isochrones", "hike");
+// "available", "unavailable" or "unknown" via isochrones?.availability
+```
+
+Use coordinates covered by the selected endpoint. `force: true` bypasses a valid
+cached observation for an explicit refresh. Rate limits, timeouts and ambiguous
+provider errors are reported as `unknown`, not as an entitlement decision.
+
 ## Core conventions
 
 Waybound normalizes provider responses into a shared contract.

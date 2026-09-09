@@ -22,6 +22,8 @@ Waybound is still in active pre-1.0 development. This changelog tracks notable c
 
 ### Added
 
+- Explicit capability probing and one-hour in-memory observed-availability cache.
+  Normal requests update the cache without an additional provider request.
 - Optional `baseUrl` configuration for the built-in providers, allowing compatible
   self-hosted and alternative endpoints while retaining the hosted defaults.
 - Public provider authentication types and provider option types, ready for

@@ -149,6 +149,12 @@ try {
 - Define backwards-compatibility guarantees
 - Validate the v1 API through beta and release-candidate prereleases
 
+## Testing
+
+Run `npm run test:report` for offline tests, or `npm run test:live:report` for
+the provider capability matrix (API keys required). See [test reporting](tests/reporting/README.md)
+for provider selection, pacing, coverage and structured diagnostics.
+
 ## License
 
 MIT © 2026

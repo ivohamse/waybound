@@ -90,4 +90,13 @@ describe("GraphHopperRequestBuilder", () => {
     expect(firstUrl.searchParams.get("time_limit")).toBe("300");
     expect(secondUrl.searchParams.get("time_limit")).toBe("900");
   });
+
+  it("does not append an empty API key", () => {
+    const request = new GraphHopperRequestBuilder().buildRouteRequest({
+      coordinates: [[5.121, 52.09], [5.111, 52.09]],
+      profile: "hike",
+    });
+
+    expect(new URL(request.url).searchParams.has("key")).toBe(false);
+  });
 });

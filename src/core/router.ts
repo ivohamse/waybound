@@ -47,6 +47,26 @@ export class Router {
       );
     }
 
+    const authentication = capability.authentication;
+    const matchingScheme = authentication.schemes.some((scheme) =>
+      this.activeProvider.authenticationSchemes.includes(scheme),
+    );
+    if (authentication.required && !matchingScheme) {
+      const configured = this.activeProvider.authenticationSchemes;
+      const code = configured.length === 0
+        ? "MISSING_CREDENTIAL"
+        : "UNSUPPORTED_AUTHENTICATION";
+      const expected = authentication.schemes.join(" or ");
+      const received = configured.join(", ");
+      throw new WayboundError(
+        code,
+        code === "MISSING_CREDENTIAL"
+          ? `[waybound -> ${this.activeProvider.name}] ${feature} requires ${expected} authentication.`
+          : `[waybound -> ${this.activeProvider.name}] ${feature} requires ${expected} authentication, but this provider is configured with ${received}.`,
+        { provider: this.activeProvider.name },
+      );
+    }
+
     if (!capability.profiles.includes(profile)) {
       throw new WayboundError(
         "UNSUPPORTED_PROFILE",

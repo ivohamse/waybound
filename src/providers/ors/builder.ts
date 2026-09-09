@@ -9,9 +9,9 @@ import {
 
 export class OrsRequestBuilder {
   private readonly baseUrl = "https://api.heigit.org/openrouteservice";
-  private apiKey: string;
+  private apiKey?: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey?: string) {
     this.apiKey = apiKey;
   }
 
@@ -26,7 +26,7 @@ export class OrsRequestBuilder {
 
   private getBaseHeaders(): Record<string, string> {
     return {
-      Authorization: this.apiKey,
+      ...(this.apiKey ? { Authorization: this.apiKey } : {}),
       "Content-Type": "application/json",
       Accept: "application/json, application/geo+json",
     };

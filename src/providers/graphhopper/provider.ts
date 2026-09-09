@@ -1,6 +1,7 @@
 import type { LineString, MultiPolygon, Point, Polygon } from "geojson";
 import type {
   RoutingProvider,
+  AuthenticationScheme,
   RouteQuery,
   RouteResponse,
   NearestQuery,
@@ -15,7 +16,7 @@ import type {
   Coordinate,
 } from "#types";
 import { WayboundError } from "#core";
-import { HttpClient, type HttpClientOptions } from "#http";
+import { HttpClient } from "#http";
 import {
   isCoordinate,
   isLineString,
@@ -23,6 +24,7 @@ import {
   isPolygonGeometry,
 } from "../validation";
 import { GraphHopperRequestBuilder } from "./builder";
+import type { GraphHopperProviderOptions } from "./config";
 import { GRAPHHOPPER_CAPABILITIES } from "./capabilities";
 import type {
   GraphHopperGeocodeResponse,
@@ -33,13 +35,18 @@ import type {
 
 export class GraphHopperProvider implements RoutingProvider {
   readonly name = "GraphHopper";
+  readonly authenticationSchemes: readonly AuthenticationScheme[];
   readonly capabilities = GRAPHHOPPER_CAPABILITIES;
   private builder: GraphHopperRequestBuilder;
   private client: HttpClient;
 
-  constructor(apiKey: string, httpOptions?: HttpClientOptions) {
-    this.builder = new GraphHopperRequestBuilder(apiKey);
-    this.client = new HttpClient(this.name, httpOptions);
+  constructor(options: GraphHopperProviderOptions = {}) {
+    const authentication = options.authentication;
+    this.authenticationSchemes = authentication ? [authentication.type] : [];
+    this.builder = new GraphHopperRequestBuilder(
+      authentication?.type === "api-key" ? authentication.value : undefined,
+    );
+    this.client = new HttpClient(this.name, options.http);
   }
 
   private invalidResponse(message: string): WayboundError {

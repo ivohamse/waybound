@@ -6,6 +6,7 @@ import {
   type RouteQuery,
   type IsochroneQuery,
   type FeatureCapability,
+  type AuthenticationScheme,
 } from "../index";
 
 function makeProvider() {
@@ -13,9 +14,11 @@ function makeProvider() {
     supported: true,
     profiles: ["hike"],
     options: [],
+    authentication: { required: false, schemes: [] },
   };
   return {
     name: "CustomProvider",
+    authenticationSchemes: [] as AuthenticationScheme[],
     capabilities: {
       directions: { ...capability },
       nearest: { ...capability },
@@ -83,6 +86,21 @@ describe("Router provider injection", () => {
     provider.capabilities.directions.supported = false;
     await expect(router.getRoute(query)).rejects.toMatchObject({ code: "UNSUPPORTED_FEATURE" });
     expect(provider.getRoute).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing or incompatible credentials before provider execution", async () => {
+    const provider = makeProvider();
+    provider.capabilities.directions.authentication = { required: true, schemes: ["api-key"] };
+    const router = new Router({ provider });
+    await expect(router.getRoute(query)).rejects.toMatchObject({ code: "MISSING_CREDENTIAL", provider: provider.name });
+    expect(provider.getRoute).not.toHaveBeenCalled();
+
+    provider.authenticationSchemes = ["bearer-token"];
+    await expect(router.getRoute(query)).rejects.toMatchObject({ code: "UNSUPPORTED_AUTHENTICATION", provider: provider.name });
+    expect(provider.getRoute).not.toHaveBeenCalled();
+
+    provider.authenticationSchemes = ["api-key"];
+    await expect(router.getRoute(query)).resolves.toEqual({ provider: provider.name, routes: [] });
   });
 
   it("normalizes custom provider errors and preserves existing Waybound errors", async () => {

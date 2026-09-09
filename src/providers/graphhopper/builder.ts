@@ -16,9 +16,9 @@ export interface GraphHopperIsochroneRequest {
 
 export class GraphHopperRequestBuilder {
   private readonly baseUrl = "https://graphhopper.com/api/1";
-  private apiKey: string;
+  private apiKey?: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey?: string) {
     this.apiKey = apiKey;
   }
 
@@ -48,7 +48,7 @@ export class GraphHopperRequestBuilder {
     const endpoint = this.mapFeatureEndpoint(feature);
     const urlObj = new URL(`${this.baseUrl}/${endpoint}`);
 
-    urlObj.searchParams.append("key", this.apiKey);
+    if (this.apiKey) urlObj.searchParams.append("key", this.apiKey);
 
     if (queryParams) {
       Object.entries(queryParams).forEach(([key, value]) => {

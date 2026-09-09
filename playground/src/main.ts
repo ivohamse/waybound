@@ -398,8 +398,8 @@ async function runFeature(): Promise<void> {
   try {
     const http = { timeoutMs: 10_000, maxRetries: 0 };
     const provider = state.provider === "ors"
-      ? new OpenRouteServiceProvider(apiKey, http)
-      : new GraphHopperProvider(apiKey, http);
+      ? new OpenRouteServiceProvider({ authentication: apiKey ? { type: "api-key", value: apiKey } : undefined, http })
+      : new GraphHopperProvider({ authentication: apiKey ? { type: "api-key", value: apiKey } : undefined, http });
     const router = new Router({ provider });
     if (state.feature === "route") await runRoute(router);
     if (state.feature === "nearest") await runNearest(router);

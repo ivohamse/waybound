@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("live capability matrix", () => {
   it("covers every advertised feature/profile and both isochrone range types", () => {
-    const providers = [new OpenRouteServiceProvider("unused"), new GraphHopperProvider("unused")];
+    const providers = [new OpenRouteServiceProvider({ authentication: { type: "api-key", value: "unused" } }), new GraphHopperProvider({ authentication: { type: "api-key", value: "unused" } })];
     const cases = providers.flatMap(buildCases);
     expect(cases).toHaveLength(30);
     expect(new Set(cases.map(caseId)).size).toBe(30);
@@ -24,13 +24,13 @@ describe("live capability matrix", () => {
   });
 
   it("uses capabilities rather than a fixed profile list", () => {
-    const provider = new OpenRouteServiceProvider("unused");
+    const provider = new OpenRouteServiceProvider({ authentication: { type: "api-key", value: "unused" } });
     const custom = {
       ...provider,
       capabilities: {
         ...provider.capabilities,
-        matrix: { supported: false, profiles: [], options: [] },
-        nearest: { supported: true, profiles: ["hike" as const], options: [] },
+        matrix: { supported: false, profiles: [], options: [], authentication: { required: false, schemes: [] } },
+        nearest: { supported: true, profiles: ["hike" as const], options: [], authentication: { required: false, schemes: [] } },
       },
     };
     // Preserve prototype methods while supplying distinct capability metadata.
@@ -53,7 +53,7 @@ describe("live execution diagnostics", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 429 }));
     vi.stubGlobal("fetch", fetchMock);
     const records: LiveRecord[] = [];
-    const provider = new GraphHopperProvider("not-a-real-key", { maxRetries: 0 });
+    const provider = new GraphHopperProvider({ authentication: { type: "api-key", value: "not-a-real-key" }, http: { maxRetries: 0 } });
     await expect(recordCase(testCase, async () => {
       await provider.getMatrix({ coordinates: [[5.12, 52.09], [5.11, 52.10]], profile: "hike" });
     }, (record) => records.push(record))).rejects.toMatchObject({ code: "RATE_LIMITED" });
@@ -66,7 +66,7 @@ describe("live execution diagnostics", () => {
   it("records network timeout without an invented HTTP status", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     const sink = vi.fn();
-    const provider = new OpenRouteServiceProvider("unused", { maxRetries: 0 });
+    const provider = new OpenRouteServiceProvider({ authentication: { type: "api-key", value: "unused" }, http: { maxRetries: 0 } });
     await expect(recordCase({ ...testCase, provider: provider.name }, async () => {
       await provider.getMatrix({ coordinates: [[5.12, 52.09], [5.11, 52.10]], profile: "hike" });
     }, sink)).rejects.toMatchObject({ code: "REQUEST_TIMEOUT" });

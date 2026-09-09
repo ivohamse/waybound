@@ -4,11 +4,11 @@ export type {
   CapabilitySemantics,
   FeatureCapability,
   ProviderCapabilities,
-  ProviderType,
   RouterConfig,
   WayboundErrorCode,
 } from "#core";
 export type {
+  RoutingProvider,
   Coordinate,
   ProfileType,
   RouteOptions,
@@ -29,3 +29,4 @@ export type {
   IsochroneResponse,
 } from "#types";
 export type { HttpClientOptions } from "#http";
+export { OpenRouteServiceProvider, GraphHopperProvider } from "#providers";

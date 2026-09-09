@@ -29,11 +29,10 @@ npm install waybound@alpha
 ## Quick start
 
 ```typescript
-import { Router } from "waybound";
+import { Router, OpenRouteServiceProvider } from "waybound";
 
 const router = new Router({
-  provider: "ors",
-  apiKey: "YOUR_API_KEY",
+  provider: new OpenRouteServiceProvider("YOUR_API_KEY"),
 });
 
 const response = await router.getRoute({
@@ -54,14 +53,40 @@ console.log(route.duration);
 console.log(route.geometry);
 ```
 
-Switching providers only requires changing the router configuration:
+Switching providers only requires passing another provider instance:
 
 ```typescript
+import { Router, GraphHopperProvider } from "waybound";
+
 const router = new Router({
-  provider: "graphhopper",
-  apiKey: "YOUR_API_KEY",
+  provider: new GraphHopperProvider("YOUR_API_KEY"),
 });
 ```
+
+## Provider configuration and migration
+
+`RouterConfig.provider` accepts a `RoutingProvider` instance. The router does not
+select or construct providers. Both built-in provider classes and the
+`RoutingProvider` interface are exported from `waybound`, so custom providers can
+implement the same contract without changing the router.
+
+This replaces the earlier `{ provider: "ors", apiKey, http }` configuration.
+Move credentials and HTTP options to the provider constructor:
+
+```typescript
+const provider = new OpenRouteServiceProvider("YOUR_API_KEY", {
+  timeoutMs: 5_000,
+  maxRetries: 1,
+});
+const router = new Router({ provider });
+```
+
+The router still handles query validation, capability checks and error
+normalization. Provider selection strings are now an application concern; the
+former `ProviderType` export has been removed. Custom implementations do not
+need an API key unless their own service requires one.
+
+Packaging remains a single npm package with the existing root entry point.
 
 ## Core conventions
 

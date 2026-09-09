@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Router } from "../../src/index";
+import { Router, OpenRouteServiceProvider } from "../../src/index";
 
 const apiKey = process.env.ORS_API_KEY;
 
@@ -10,20 +10,16 @@ if (!apiKey) {
 }
 
 const router = new Router({
-  provider: "ors",
-  apiKey,
-  http: {
+  provider: new OpenRouteServiceProvider(apiKey, {
     timeoutMs: 5_000,
     maxRetries: 1,
-  },
+  }),
 });
 const diagnosticRouter = new Router({
-  provider: "ors",
-  apiKey,
-  http: {
+  provider: new OpenRouteServiceProvider(apiKey, {
     timeoutMs: 2_000,
     maxRetries: 1,
-  },
+  }),
 });
 
 const UTRECHT_CENTRE: [number, number] = [5.12142, 52.09063];

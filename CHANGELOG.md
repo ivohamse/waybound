@@ -2,6 +2,22 @@
 
 Waybound is still in active pre-1.0 development. This changelog tracks notable changes during the alpha phase and will be reset/restructured for the stable v1.0 release line.
 
+## Unreleased
+
+### Changed
+
+- **Breaking:** `RouterConfig.provider` now takes a `RoutingProvider` instance
+  instead of a provider-name string. Pass API keys and HTTP options to the
+  provider constructor, e.g. `new Router({ provider: new OpenRouteServiceProvider(apiKey, http) })`.
+- Removed the closed `ProviderType` union from the public API; provider selection
+  identifiers now belong to the consuming application.
+- Migrated the playground, live tests and documentation to provider instances.
+
+### Added
+
+- Public package-root exports for `RoutingProvider`, `OpenRouteServiceProvider`
+  and `GraphHopperProvider`, including support for custom provider implementations.
+
 ## 0.4.0-alpha.1
 
 ### Added

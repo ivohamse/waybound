@@ -40,11 +40,21 @@ describe("live capability matrix", () => {
   });
 
   it("validates provider selection and pacing settings", () => {
-    expect(liveSettings({})).toEqual({ providers: ["ors", "graphhopper"], delayMs: 1500, timeoutMs: 10000 });
+    expect(liveSettings({})).toEqual({ providers: ["ors", "graphhopper"], delayMs: 1500, timeoutMs: 10000, orsBaseUrl: undefined, graphHopperBaseUrl: undefined });
     expect(liveSettings({ WAYBOUND_LIVE_PROVIDERS: "ors", WAYBOUND_LIVE_DELAY_MS: "0" }).providers).toEqual(["ors"]);
     expect(() => liveSettings({ WAYBOUND_LIVE_PROVIDERS: "typo" })).toThrow();
     expect(() => liveSettings({ WAYBOUND_LIVE_DELAY_MS: "-1" })).toThrow();
     expect(() => liveSettings({ WAYBOUND_LIVE_TIMEOUT_MS: "NaN" })).toThrow();
+  });
+
+  it("reads optional custom provider endpoints", () => {
+    expect(liveSettings({
+      ORS_BASE_URL: " http://localhost:8080/openrouteservice/ ",
+      GRAPHHOPPER_BASE_URL: "http://localhost:8989/api/1",
+    })).toMatchObject({
+      orsBaseUrl: "http://localhost:8080/openrouteservice/",
+      graphHopperBaseUrl: "http://localhost:8989/api/1",
+    });
   });
 });
 

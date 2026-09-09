@@ -9,8 +9,8 @@ import { MissingCredentialError, recordCase } from "./support/record";
 const settings = liveSettings(process.env);
 const http = { timeoutMs: settings.timeoutMs, maxRetries: 0 };
 const providers = [
-  { key: "ors", credential: "ORS_API_KEY", create: (key: string) => new OpenRouteServiceProvider({ authentication: key ? { type: "api-key", value: key } : undefined, http }) },
-  { key: "graphhopper", credential: "GRAPHHOPPER_API_KEY", create: (key: string) => new GraphHopperProvider({ authentication: key ? { type: "api-key", value: key } : undefined, http }) },
+  { key: "ors", credential: "ORS_API_KEY", create: (key: string) => new OpenRouteServiceProvider({ authentication: key ? { type: "api-key", value: key } : undefined, baseUrl: settings.orsBaseUrl, http }) },
+  { key: "graphhopper", credential: "GRAPHHOPPER_API_KEY", create: (key: string) => new GraphHopperProvider({ authentication: key ? { type: "api-key", value: key } : undefined, baseUrl: settings.graphHopperBaseUrl, http }) },
 ].filter((p) => settings.providers.includes(p.key));
 
 const CENTRE: Coordinate = [5.12142, 52.09063];

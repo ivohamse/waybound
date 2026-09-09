@@ -99,4 +99,19 @@ describe("GraphHopperRequestBuilder", () => {
 
     expect(new URL(request.url).searchParams.has("key")).toBe(false);
   });
+
+  it("uses a normalized custom API root", () => {
+    const request = new GraphHopperRequestBuilder(undefined, "http://localhost:8989/api/1/")
+      .buildRouteRequest({ coordinates: [[5.121, 52.09], [5.111, 52.09]], profile: "hike" });
+
+    const url = new URL(request.url);
+    expect(url.origin).toBe("http://localhost:8989");
+    expect(url.pathname).toBe("/api/1/route");
+  });
+
+  it("rejects an invalid custom API root", () => {
+    expect(() => new GraphHopperRequestBuilder(undefined, "/api/1")).toThrow(
+      "baseUrl must be an absolute HTTP(S) URL",
+    );
+  });
 });

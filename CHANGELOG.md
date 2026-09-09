@@ -22,6 +22,8 @@ Waybound is still in active pre-1.0 development. This changelog tracks notable c
 
 ### Added
 
+- Optional `baseUrl` configuration for the built-in providers, allowing compatible
+  self-hosted and alternative endpoints while retaining the hosted defaults.
 - Public provider authentication types and provider option types, ready for
   API-key, bearer-token and authentication-free provider implementations.
 

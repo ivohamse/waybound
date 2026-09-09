@@ -44,6 +44,7 @@ export class OpenRouteServiceProvider implements RoutingProvider {
     this.authenticationSchemes = authentication && hasCredential ? [authentication.type] : [];
     this.builder = new OrsRequestBuilder(
       authentication?.type === "api-key" && hasCredential ? authentication.value : undefined,
+      options.baseUrl,
     );
     this.client = new HttpClient(this.name, options.http);
   }

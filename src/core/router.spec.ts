@@ -115,4 +115,70 @@ describe("Router provider injection", () => {
     provider.getRoute.mockRejectedValueOnce(error);
     await expect(router.getRoute(query)).rejects.toBe(error);
   });
+
+  it("records normal calls without sending a second availability request", async () => {
+    const provider = makeProvider();
+    const router = new Router({ provider });
+
+    await router.getRoute(query);
+
+    expect(provider.getRoute).toHaveBeenCalledOnce();
+    expect(router.getObservedAvailability("directions", "hike")).toMatchObject({
+      availability: "available", reason: null,
+    });
+  });
+
+  it("probes once and reuses the one-hour observation cache", async () => {
+    const provider = makeProvider();
+    const router = new Router({ provider });
+    const options = {
+      coordinates: [[5.12, 52.09], [5.11, 52.10]] as [[number, number], [number, number]],
+      targets: [{ feature: "isochrones" as const, profile: "hike" as const }],
+    };
+
+    await router.probeCapabilities(options);
+    await router.probeCapabilities(options);
+
+    expect(provider.getIsochrones).toHaveBeenCalledOnce();
+    expect(router.getObservedAvailability("isochrones", "hike")?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("records a recognized GraphHopper isochrone plan restriction as unavailable", async () => {
+    const provider = makeProvider();
+    provider.name = "GraphHopper";
+    provider.getIsochrones.mockRejectedValueOnce(new WayboundError(
+      "PROVIDER_ERROR", "Provider rejected request", { status: 400, providerMessage: "This feature requires a premium account." },
+    ));
+    const router = new Router({ provider });
+
+    await expect(router.getIsochrones({ coordinate: [5.12, 52.09], profile: "hike", options: { rangeType: "time", ranges: [300] } })).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+    expect(router.getObservedAvailability("isochrones", "hike")).toMatchObject({
+      availability: "unavailable", reason: "plan-restricted", httpStatus: 400,
+    });
+  });
+
+  it("records credential preflight failures during a probe", async () => {
+    const provider = makeProvider();
+    provider.capabilities.directions.authentication = { required: true, schemes: ["api-key"] };
+    const router = new Router({ provider });
+
+    const observations = await router.probeCapabilities({
+      coordinates: [[5.12, 52.09], [5.11, 52.10]],
+      targets: [{ feature: "directions", profile: "hike" }],
+    });
+
+    expect(observations).toMatchObject([{ availability: "unknown", reason: "credentials-rejected" }]);
+    expect(provider.getRoute).not.toHaveBeenCalled();
+  });
+
+  it("classifies HTTP 401 as rejected credentials", async () => {
+    const provider = makeProvider();
+    provider.getRoute.mockRejectedValueOnce(new WayboundError("PROVIDER_ERROR", "Unauthorized", { status: 401 }));
+    const router = new Router({ provider });
+
+    await expect(router.getRoute(query)).rejects.toMatchObject({ status: 401 });
+    expect(router.getObservedAvailability("directions", "hike")).toMatchObject({
+      availability: "unknown", reason: "credentials-rejected", httpStatus: 401,
+    });
+  });
 });

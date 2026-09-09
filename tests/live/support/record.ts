@@ -11,14 +11,23 @@ export interface HttpObservation {
 export interface LiveRecord extends LiveCase {
   id: string;
   startedAt: string;
-  status: "passed" | "failed";
+  status: "passed" | "failed" | "skipped";
   durationMs: number;
   http: HttpObservation[];
   wayboundErrorCode: string | null;
-  failureKind: "rate-limit" | "timeout" | "network" | "provider" | "invalid-response" | "configuration" | "assertion" | null;
+  failureKind: "rate-limit" | "timeout" | "network" | "provider" | "invalid-response" | "configuration" | "assertion" | "unavailable" | null;
 }
 
 export class MissingCredentialError extends Error {}
+export class UnavailableCapabilityError extends Error {}
+
+export function recordUnavailable(test: LiveCase): void {
+  const record: LiveRecord = {
+    ...test, id: caseId(test), startedAt: new Date().toISOString(), status: "skipped",
+    durationMs: 0, http: [], wayboundErrorCode: null, failureKind: "unavailable",
+  };
+  if (process.env.WAYBOUND_LIVE_METADATA_FILE) appendFileSync(process.env.WAYBOUND_LIVE_METADATA_FILE, JSON.stringify(record) + "\n", "utf8");
+}
 
 // Scoped to the sequential live suite; never logs URLs, headers, keys or payloads.
 export async function recordCase(test: LiveCase, execute: () => Promise<void>, sink?: (record: LiveRecord) => void): Promise<void> {
@@ -44,6 +53,11 @@ export async function recordCase(test: LiveCase, execute: () => Promise<void>, s
     await execute();
     record.status = "passed";
   } catch (error) {
+    if (error instanceof UnavailableCapabilityError) {
+      record.status = "skipped";
+      record.failureKind = "unavailable";
+      return;
+    }
     if (error instanceof WayboundError) {
       record.wayboundErrorCode = error.code;
       record.failureKind = error.code === "RATE_LIMITED" ? "rate-limit"

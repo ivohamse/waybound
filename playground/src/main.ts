@@ -1,4 +1,6 @@
-import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { type GeoJSONSource, type Map } from "maplibre-gl";
+import DOMPurify from "dompurify";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Router, OpenRouteServiceProvider, GraphHopperProvider, WayboundError, type Coordinate, type ProfileType, type ProviderCapabilities } from "waybound";
 import "./styles.css";
@@ -34,12 +36,13 @@ const state: PlaygroundState = {
   feature: "route",
   coordinates: [],
   apiKeys: {
-    ors: readSessionStorage("waybound-playground-api-key-ors") ?? import.meta.env.VITE_ORS_API_KEY ?? "",
-    graphhopper: readSessionStorage("waybound-playground-api-key-graphhopper") ?? import.meta.env.VITE_GRAPHHOPPER_API_KEY ?? "",
+    ors: import.meta.env.VITE_ORS_API_KEY ?? "",
+    graphhopper: import.meta.env.VITE_GRAPHHOPPER_API_KEY ?? "",
   },
 };
 
 let providerDialogRequired = true;
+let activeRouter: Router | undefined;
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing #app element");
@@ -128,7 +131,7 @@ app.innerHTML = `
         <input id="dialog-api-key" type="password" autocomplete="off" spellcheck="false" />
       </label>
 
-      <p class="dialog-note">The provider choice is remembered on this device. The API key is kept only for this browser session.</p>
+      <p class="dialog-note">The provider choice is remembered on this device. API keys are kept only in memory and are cleared when this page is closed or reloaded.</p>
 
       <div class="dialog-actions">
         <button id="dialog-cancel" type="button">Cancel</button>
@@ -281,8 +284,8 @@ function confirmProviderDialog(): void {
 
   state.provider = provider;
   state.apiKeys[provider] = apiKey;
+  activeRouter = undefined;
   writeLocalStorage("waybound-playground-provider", provider);
-  writeSessionStorage(`waybound-playground-api-key-${provider}`, apiKey);
 
   providerDialogRequired = false;
   providerModal.classList.add("hidden");
@@ -421,7 +424,12 @@ async function runFeature(): Promise<void> {
   runButton.textContent = "Running…";
 
   try {
-    const router = new Router({ provider: createProvider(state.provider, apiKey) });
+    const router = activeRouter ??= new Router({ provider: createProvider(state.provider, apiKey) });
+    const availability = router.getObservedAvailability(capabilityFeature[state.feature], state.profile);
+    if (availability?.availability === "unavailable") {
+      showError(`This ${state.feature} feature is not available for the configured provider/account (${availability.reason ?? "restricted"}).`);
+      return;
+    }
     if (state.feature === "route") await runRoute(router);
     if (state.feature === "nearest") await runNearest(router);
     if (state.feature === "matrix") await runMatrix(router);
@@ -435,6 +443,10 @@ async function runFeature(): Promise<void> {
         "",
         error.message,
       ];
+      const observation = activeRouter?.getObservedAvailability(capabilityFeature[state.feature], state.profile);
+      if (observation?.availability === "unavailable") {
+        details.push("", `Availability: unavailable (${observation.reason ?? "restricted"}).`);
+      }
       showError(details.join("\n"));
     } else {
       showError(error instanceof Error ? error.message : String(error));
@@ -544,7 +556,7 @@ async function runIsochrones(router: Router): Promise<void> {
 
 function renderResult(provider: string, html: string): void {
   providerBadge.textContent = provider;
-  result.innerHTML = html;
+  result.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
   emptyState.classList.add("hidden");
   errorBox.classList.add("hidden");
   result.classList.remove("hidden");
@@ -643,23 +655,6 @@ function readLocalStorage(key: string): string | null {
 function writeLocalStorage(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
-  } catch {
-    // Storage can be unavailable in restrictive browser contexts.
-  }
-}
-
-function readSessionStorage(key: string): string | null {
-  try {
-    return sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeSessionStorage(key: string, value: string): void {
-  try {
-    if (value) sessionStorage.setItem(key, value);
-    else sessionStorage.removeItem(key);
   } catch {
     // Storage can be unavailable in restrictive browser contexts.
   }

@@ -15,6 +15,7 @@ export type WayboundErrorCode =
 export interface WayboundErrorOptions {
   provider?: string;
   status?: number;
+  providerMessage?: string;
   cause?: unknown;
 }
 
@@ -22,6 +23,8 @@ export class WayboundError extends Error {
   readonly code: WayboundErrorCode;
   readonly provider?: string;
   readonly status?: number;
+  /** Provider-supplied diagnostic text, when safely available. */
+  readonly providerMessage?: string;
 
   constructor(
     code: WayboundErrorCode,
@@ -33,5 +36,6 @@ export class WayboundError extends Error {
     this.code = code;
     this.provider = options.provider;
     this.status = options.status;
+    this.providerMessage = options.providerMessage;
   }
 }

@@ -97,4 +97,21 @@ describe("provider capabilities", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("treats an empty built-in credential as missing before fetch", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const router = new Router({
+      provider: new GraphHopperProvider({ authentication: { type: "api-key", value: "   " } }),
+    });
+
+    await expect(router.getRoute({
+      coordinates: [[5.121, 52.09], [5.111, 52.09]],
+      profile: "hike",
+    })).rejects.toMatchObject({
+      code: "MISSING_CREDENTIAL",
+      provider: "GraphHopper",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

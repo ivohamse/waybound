@@ -1,4 +1,4 @@
-import type { ProfileType } from "#types";
+import type { AuthenticationRequirement, ProfileType } from "#types";
 
 export type CapabilitySemantics = "native" | "approximation";
 export type CapabilityOption =
@@ -13,6 +13,7 @@ export interface FeatureCapability {
   readonly supported: boolean;
   readonly profiles: readonly ProfileType[];
   readonly options: readonly CapabilityOption[];
+  readonly authentication: AuthenticationRequirement;
   readonly semantics?: CapabilitySemantics;
   readonly notes?: string;
 }

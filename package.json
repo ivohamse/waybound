@@ -1,6 +1,9 @@
 {
+  "author": {
+    "name": "I. Hamse"
+  },
   "name": "waybound",
-  "version": "0.3.3",
+  "version": "0.4.0-alpha.1",
   "description": "A unified, multi-provider routing and geospatial engine for TypeScript.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -27,9 +30,23 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:report": "node scripts/run-test-report.mjs unit",
     "test:live": "vitest run --config vitest.live.config.mts",
+    "test:live:report": "node scripts/run-test-report.mjs live",
+    "playground": "npm run build && npm --prefix playground run dev",
+    "playground:build": "npm run build && npm --prefix playground run build",
+    "check:release": "npm test && npm run build && npm --prefix playground run build && npm pack --dry-run",
+    "prepublishOnly": "npm test && npm run build",
     "yalc:push": "npm run build && yalc push"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ivohamse/waybound.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ivohamse/waybound/issues"
+  },
+  "homepage": "https://github.com/ivohamse/waybound#readme",
   "keywords": [
     "routing",
     "geojson",
@@ -39,8 +56,11 @@
     "hike",
     "bike"
   ],
-  "author": "",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
   "devDependencies": {
     "@types/geojson": "latest",
     "@types/node": "^26.5.0",

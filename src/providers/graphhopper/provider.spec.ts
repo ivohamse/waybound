@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GraphHopperProvider } from "./index";
 import { HttpClient } from "../../http/client";
 import type { RouteQuery } from "#types";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("GraphHopperProvider", () => {
   let provider: GraphHopperProvider;
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    provider = new GraphHopperProvider("test-gh-key");
+    provider = new GraphHopperProvider({ authentication: { type: "api-key", value: "test-gh-key" } });
   });
 
   it("transforms a GraphHopper route response", async () => {

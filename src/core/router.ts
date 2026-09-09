@@ -10,8 +10,6 @@ import type {
   IsochroneResponse,
   ProfileType,
 } from "#types";
-import type { HttpClientOptions } from "#http";
-import { GraphHopperProvider, OpenRouteServiceProvider } from "#providers";
 import type { CapabilityOption, ProviderCapabilities } from "./capabilities";
 import { WayboundError } from "./errors";
 import {
@@ -21,34 +19,17 @@ import {
   validateRouteQuery,
 } from "./query-validation";
 
-export type ProviderType = "ors" | "graphhopper";
 export type CapabilityFeature = keyof ProviderCapabilities;
 
 export interface RouterConfig {
-  provider: ProviderType;
-  apiKey: string;
-  http?: HttpClientOptions;
+  provider: RoutingProvider;
 }
 
 export class Router {
-  private activeProvider: RoutingProvider;
+  private readonly activeProvider: RoutingProvider;
 
   constructor(config: RouterConfig) {
-    const providerKey = config.provider.toLowerCase();
-
-    if (providerKey === "ors") {
-      this.activeProvider = new OpenRouteServiceProvider(
-        config.apiKey,
-        config.http,
-      );
-    } else if (providerKey === "graphhopper") {
-      this.activeProvider = new GraphHopperProvider(config.apiKey, config.http);
-    } else {
-      throw new WayboundError(
-        "UNSUPPORTED_PROVIDER",
-        `Unsupported provider "${config.provider}" inside waybound.`,
-      );
-    }
+    this.activeProvider = config.provider;
   }
 
   private assertCapability(
@@ -62,6 +43,26 @@ export class Router {
       throw new WayboundError(
         "UNSUPPORTED_FEATURE",
         `[waybound -> ${this.activeProvider.name}] ${feature} is not supported by this provider.`,
+        { provider: this.activeProvider.name },
+      );
+    }
+
+    const authentication = capability.authentication;
+    const matchingScheme = authentication.schemes.some((scheme) =>
+      this.activeProvider.authenticationSchemes.includes(scheme),
+    );
+    if (authentication.required && !matchingScheme) {
+      const configured = this.activeProvider.authenticationSchemes;
+      const code = configured.length === 0
+        ? "MISSING_CREDENTIAL"
+        : "UNSUPPORTED_AUTHENTICATION";
+      const expected = authentication.schemes.join(" or ");
+      const received = configured.join(", ");
+      throw new WayboundError(
+        code,
+        code === "MISSING_CREDENTIAL"
+          ? `[waybound -> ${this.activeProvider.name}] ${feature} requires ${expected} authentication.`
+          : `[waybound -> ${this.activeProvider.name}] ${feature} requires ${expected} authentication, but this provider is configured with ${received}.`,
         { provider: this.activeProvider.name },
       );
     }

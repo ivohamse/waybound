@@ -472,7 +472,10 @@ async function runRoute(router: Router): Promise<void> {
   const route = response.routes[0];
   if (!route) throw new Error("Provider returned no route.");
 
-  setSourceData("route", { type: "Feature", properties: {}, geometry: route.geometry });
+  setSourceData("route", {
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: {}, geometry: route.geometry }],
+  });
   fitCoordinates(route.geometry.coordinates as Coordinate[]);
   renderResult(response.provider, `
     <div class="metric-grid">

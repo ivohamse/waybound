@@ -11,6 +11,11 @@ type FeatureType = "route" | "nearest" | "matrix" | "isochrones";
 type RangeType = "time" | "distance";
 type CapabilityFeature = keyof ProviderCapabilities;
 
+const isochroneColorExpression = [
+  "match", ["get", "index"],
+  0, "#eab308", 1, "#f97316", 2, "#ef4444", 3, "#db2777", 4, "#9333ea", "#2563eb",
+] as const;
+
 const capabilityFeature: Record<FeatureType, CapabilityFeature> = {
   route: "directions",
   nearest: "nearest",
@@ -186,8 +191,8 @@ map.on("load", () => {
   addGeoJsonSource("nearest-points");
   addGeoJsonSource("isochrones");
 
-  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": "#2563eb", "fill-opacity": 0.18 } });
-  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": "#2563eb", "line-width": 2, "line-opacity": 0.8 } });
+  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": isochroneColorExpression, "fill-opacity": 0.24 }, layout: { "fill-sort-key": ["-", ["get", "index"]] } });
+  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": isochroneColorExpression, "line-width": 2.25, "line-opacity": 0.9 }, layout: { "line-sort-key": ["-", ["get", "index"]] } });
   map.addLayer({ id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } });
   map.addLayer({ id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } });
   map.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } });

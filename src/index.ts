@@ -9,6 +9,11 @@ export type {
 } from "#core";
 export type {
   RoutingProvider,
+  AuthenticationScheme,
+  ProviderAuthentication,
+  AuthenticationRequirement,
+  ApiKeyAuthentication,
+  BearerTokenAuthentication,
   Coordinate,
   ProfileType,
   RouteOptions,
@@ -30,3 +35,4 @@ export type {
 } from "#types";
 export type { HttpClientOptions } from "#http";
 export { OpenRouteServiceProvider, GraphHopperProvider } from "#providers";
+export type { OpenRouteServiceProviderOptions, GraphHopperProviderOptions } from "#providers";

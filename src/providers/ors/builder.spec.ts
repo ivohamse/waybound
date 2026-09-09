@@ -50,4 +50,13 @@ describe("OrsRequestBuilder", () => {
     expect(body.locations).toEqual(coordinates);
     expect(body.radius).toBe(500);
   });
+
+  it("does not send an empty Authorization header", () => {
+    const request = new OrsRequestBuilder().buildRouteRequest({
+      coordinates: [[5.121, 52.09], [5.111, 52.09]],
+      profile: "hike",
+    });
+
+    expect(request.headers).not.toHaveProperty("Authorization");
+  });
 });

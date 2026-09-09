@@ -6,16 +6,24 @@ Waybound is still in active pre-1.0 development. This changelog tracks notable c
 
 ### Changed
 
+- **Breaking:** Built-in provider constructors now take one configuration object.
+  Use `new OpenRouteServiceProvider({ authentication: { type: "api-key", value }, http })`
+  and the equivalent GraphHopper form.
+- Authentication requirements are exposed per capability; missing or incompatible
+  credentials fail before a network request with typed errors.
 - Live provider errors and account limitations now fail tests instead of being
   accepted as diagnostic successes. Old latest reports are cleared before each run.
 - **Breaking:** `RouterConfig.provider` now takes a `RoutingProvider` instance
   instead of a provider-name string. Pass API keys and HTTP options to the
-  provider constructor, e.g. `new Router({ provider: new OpenRouteServiceProvider(apiKey, http) })`.
+  provider constructor, e.g. `new Router({ provider: new OpenRouteServiceProvider({ authentication: { type: "api-key", value: apiKey }, http }) })`.
 - Removed the closed `ProviderType` union from the public API; provider selection
   identifiers now belong to the consuming application.
 - Migrated the playground, live tests and documentation to provider instances.
 
 ### Added
+
+- Public provider authentication types and provider option types, ready for
+  API-key, bearer-token and authentication-free provider implementations.
 
 - Capability-driven live coverage across both providers and all supported profiles,
   including separate time/distance isochrone cases (30 cases currently).

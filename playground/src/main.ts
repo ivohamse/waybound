@@ -1,12 +1,20 @@
 import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Router, OpenRouteServiceProvider, GraphHopperProvider, WayboundError, type Coordinate, type ProfileType } from "waybound";
+import { Router, OpenRouteServiceProvider, GraphHopperProvider, WayboundError, type Coordinate, type ProfileType, type ProviderCapabilities } from "waybound";
 import "./styles.css";
 
 type ProviderKey = "ors" | "graphhopper";
 
 type FeatureType = "route" | "nearest" | "matrix" | "isochrones";
 type RangeType = "time" | "distance";
+type CapabilityFeature = keyof ProviderCapabilities;
+
+const capabilityFeature: Record<FeatureType, CapabilityFeature> = {
+  route: "directions",
+  nearest: "nearest",
+  matrix: "matrix",
+  isochrones: "isochrones",
+};
 
 interface PlaygroundState {
   provider: ProviderKey;
@@ -232,7 +240,7 @@ runButton.addEventListener("click", runFeature);
 renderFeatureOptions();
 updateFeatureUi();
 updateProviderUi();
-openProviderDialog(true);
+openProviderDialog(selectedFeatureRequiresCredential());
 
 function openProviderDialog(required: boolean): void {
   providerDialogRequired = required;
@@ -246,6 +254,19 @@ function openProviderDialog(required: boolean): void {
 function closeProviderDialog(): void {
   if (providerDialogRequired) return;
   providerModal.classList.add("hidden");
+}
+
+function createProvider(providerKey: ProviderKey, apiKey: string) {
+  const http = { timeoutMs: 10_000, maxRetries: 0 };
+  const authentication = apiKey ? { type: "api-key" as const, value: apiKey } : undefined;
+  return providerKey === "ors"
+    ? new OpenRouteServiceProvider({ authentication, http })
+    : new GraphHopperProvider({ authentication, http });
+}
+
+function selectedFeatureRequiresCredential(providerKey = state.provider): boolean {
+  const provider = createProvider(providerKey, "");
+  return provider.capabilities[capabilityFeature[state.feature]].authentication.required;
 }
 
 function syncDialogApiKey(): void {
@@ -391,16 +412,16 @@ async function runFeature(): Promise<void> {
   }
 
   const apiKey = state.apiKeys[state.provider] ?? "";
+  if (selectedFeatureRequiresCredential() && !apiKey) {
+    openProviderDialog(true);
+    return;
+  }
   runButton.disabled = true;
   const idleLabel = runButton.textContent ?? "Run";
   runButton.textContent = "Running…";
 
   try {
-    const http = { timeoutMs: 10_000, maxRetries: 0 };
-    const provider = state.provider === "ors"
-      ? new OpenRouteServiceProvider(apiKey, http)
-      : new GraphHopperProvider(apiKey, http);
-    const router = new Router({ provider });
+    const router = new Router({ provider: createProvider(state.provider, apiKey) });
     if (state.feature === "route") await runRoute(router);
     if (state.feature === "nearest") await runNearest(router);
     if (state.feature === "matrix") await runMatrix(router);

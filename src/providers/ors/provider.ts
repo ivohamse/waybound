@@ -1,6 +1,7 @@
 import type { LineString, MultiPolygon, Polygon } from "geojson";
 import type {
   RoutingProvider,
+  AuthenticationScheme,
   RouteQuery,
   RouteResponse,
   NearestQuery,
@@ -13,7 +14,7 @@ import type {
   Maneuver,
 } from "#types";
 import { WayboundError } from "#core";
-import { HttpClient, type HttpClientOptions } from "#http";
+import { HttpClient } from "#http";
 import {
   isCoordinate,
   isLineString,
@@ -21,6 +22,7 @@ import {
   isPolygonGeometry,
 } from "../validation";
 import { OrsRequestBuilder } from "./builder";
+import type { OpenRouteServiceProviderOptions } from "./config";
 import { ORS_CAPABILITIES } from "./capabilities";
 import type {
   OrsDirectionsResponse,
@@ -31,13 +33,19 @@ import type {
 
 export class OpenRouteServiceProvider implements RoutingProvider {
   readonly name = "OpenRouteService";
+  readonly authenticationSchemes: readonly AuthenticationScheme[];
   readonly capabilities = ORS_CAPABILITIES;
   private builder: OrsRequestBuilder;
   private client: HttpClient;
 
-  constructor(apiKey: string, httpOptions?: HttpClientOptions) {
-    this.builder = new OrsRequestBuilder(apiKey);
-    this.client = new HttpClient(this.name, httpOptions);
+  constructor(options: OpenRouteServiceProviderOptions = {}) {
+    const authentication = options.authentication;
+    const hasCredential = Boolean(authentication?.value.trim());
+    this.authenticationSchemes = authentication && hasCredential ? [authentication.type] : [];
+    this.builder = new OrsRequestBuilder(
+      authentication?.type === "api-key" && hasCredential ? authentication.value : undefined,
+    );
+    this.client = new HttpClient(this.name, options.http);
   }
 
   private invalidResponse(message: string): WayboundError {

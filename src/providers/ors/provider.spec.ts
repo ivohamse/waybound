@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { OpenRouteServiceProvider } from "./index";
 import { HttpClient } from "../../http/client";
 import type { RouteQuery } from "#types";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("OpenRouteServiceProvider", () => {
   let provider: OpenRouteServiceProvider;
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    provider = new OpenRouteServiceProvider("test-api-key");
+    provider = new OpenRouteServiceProvider({ authentication: { type: "api-key", value: "test-api-key" } });
   });
 
   it("transforms an ORS directions response", async () => {

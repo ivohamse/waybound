@@ -32,7 +32,9 @@ npm install waybound@alpha
 import { Router, OpenRouteServiceProvider } from "waybound";
 
 const router = new Router({
-  provider: new OpenRouteServiceProvider("YOUR_API_KEY"),
+  provider: new OpenRouteServiceProvider({
+    authentication: { type: "api-key", value: "YOUR_API_KEY" },
+  }),
 });
 
 const response = await router.getRoute({
@@ -59,7 +61,9 @@ Switching providers only requires passing another provider instance:
 import { Router, GraphHopperProvider } from "waybound";
 
 const router = new Router({
-  provider: new GraphHopperProvider("YOUR_API_KEY"),
+  provider: new GraphHopperProvider({
+    authentication: { type: "api-key", value: "YOUR_API_KEY" },
+  }),
 });
 ```
 
@@ -71,22 +75,47 @@ select or construct providers. Both built-in provider classes and the
 implement the same contract without changing the router.
 
 This replaces the earlier `{ provider: "ors", apiKey, http }` configuration.
-Move credentials and HTTP options to the provider constructor:
+Move credentials and HTTP options to the provider configuration object:
 
 ```typescript
-const provider = new OpenRouteServiceProvider("YOUR_API_KEY", {
-  timeoutMs: 5_000,
-  maxRetries: 1,
+const provider = new OpenRouteServiceProvider({
+  authentication: { type: "api-key", value: "YOUR_API_KEY" },
+  http: { timeoutMs: 5_000, maxRetries: 1 },
 });
 const router = new Router({ provider });
 ```
 
 The router still handles query validation, capability checks and error
 normalization. Provider selection strings are now an application concern; the
-former `ProviderType` export has been removed. Custom implementations do not
-need an API key unless their own service requires one.
+former `ProviderType` export has been removed. Authentication is declared per feature in `capabilities`; the router rejects a missing or incompatible credential before making a request. Custom implementations can declare authentication-free features.
 
 Packaging remains a single npm package with the existing root entry point.
+
+## Authentication
+
+Authentication belongs to the provider instance, not `Router`. Each feature exposes
+its requirement in `router.capabilities.<feature>.authentication`:
+
+```ts
+{
+  required: true,
+  schemes: ["api-key"],
+}
+```
+
+The built-in hosted ORS and GraphHopper adapters currently require an API key for
+all implemented features. Constructing either provider without credentials is
+allowed, but the router rejects a call with `MISSING_CREDENTIAL` before sending an
+HTTP request. A credential with an unsupported scheme produces
+`UNSUPPORTED_AUTHENTICATION`.
+
+Custom providers can expose an authentication-free feature with
+`authentication: { required: false, schemes: [] }`; they set the non-sensitive
+`authenticationSchemes` list on the provider instance. Credentials themselves are
+never exposed through `Router` or capabilities.
+
+Provider configuration deliberately leaves endpoint URLs out of scope for now.
+See issue #24 for self-hosted and custom-endpoint support.
 
 ## Core conventions
 

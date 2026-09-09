@@ -472,10 +472,17 @@ async function runRoute(router: Router): Promise<void> {
   const route = response.routes[0];
   if (!route) throw new Error("Provider returned no route.");
 
-  setSourceData("route", {
+  const routeData = {
     type: "FeatureCollection",
     features: [{ type: "Feature", properties: {}, geometry: route.geometry }],
+  };
+  console.debug("[Waybound playground] route received", {
+    geometryType: route.geometry.type,
+    coordinateCount: flattenGeometryCoordinates(route.geometry.coordinates).length,
+    routeData,
   });
+  (window as Window & { __wayboundRouteData?: object }).__wayboundRouteData = routeData;
+  setSourceData("route", routeData);
   fitCoordinates(route.geometry.coordinates as Coordinate[]);
   renderResult(response.provider, `
     <div class="metric-grid">
@@ -600,7 +607,11 @@ function flattenGeometryCoordinates(value: unknown): Coordinate[] {
 
 function setSourceData(id: string, data: object): void {
   const source = map.getSource(id) as GeoJSONSource | undefined;
-  if (source) source.setData(data as never);
+  console.debug("[Waybound playground] setting source data", { id, hasSource: Boolean(source), data });
+  if (!source) return;
+
+  source.setData(data as never);
+  console.debug("[Waybound playground] source data after setData", { id, data: source.serialize().data });
 }
 
 function emptyFeatureCollection(): { type: "FeatureCollection"; features: never[] } {

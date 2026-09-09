@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import { Map } from "maplibre-gl";
 
 const isochroneColorExpression = [
   "match",
@@ -11,9 +11,9 @@ const isochroneColorExpression = [
   "#2563eb",
 ] as const;
 
-const originalAddLayer = maplibregl.Map.prototype.addLayer;
+const originalAddLayer = Map.prototype.addLayer;
 
-maplibregl.Map.prototype.addLayer = function (...args: Parameters<typeof originalAddLayer>) {
+Map.prototype.addLayer = function (...args: Parameters<typeof originalAddLayer>) {
   const layer = args[0];
 
   if (layer.id === "isochrones-fill" && layer.type === "fill") {

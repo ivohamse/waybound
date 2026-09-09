@@ -40,9 +40,10 @@ export class OpenRouteServiceProvider implements RoutingProvider {
 
   constructor(options: OpenRouteServiceProviderOptions = {}) {
     const authentication = options.authentication;
-    this.authenticationSchemes = authentication ? [authentication.type] : [];
+    const hasCredential = Boolean(authentication?.value.trim());
+    this.authenticationSchemes = authentication && hasCredential ? [authentication.type] : [];
     this.builder = new OrsRequestBuilder(
-      authentication?.type === "api-key" ? authentication.value : undefined,
+      authentication?.type === "api-key" && hasCredential ? authentication.value : undefined,
     );
     this.client = new HttpClient(this.name, options.http);
   }

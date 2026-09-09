@@ -127,6 +127,7 @@ export class Router {
   }
 
   private observeFailure(feature: CapabilityFeature, profile: ProfileType, error: WayboundError): ObservedCapabilityAvailability {
+    if (error.status === 401) return this.observe(feature, profile, "unknown", "credentials-rejected", error.status);
     if (error.status === 403) return this.observe(feature, profile, "unavailable", "access-restricted", error.status);
     const message = error.providerMessage?.toLowerCase() ?? "";
     const isKnownPlanRestriction = this.activeProvider.name === "GraphHopper"
@@ -223,8 +224,9 @@ export class Router {
       if (cached) { results.push(cached); continue; }
       try {
         await this.runProbe(target, first, second);
-      } catch {
-        // Normal calls record the normalized failure before rethrowing.
+      } catch (error) {
+        // Capability preflight failures occur before normal calls can observe them.
+        this.observeFailure(target.feature, target.profile, this.toProviderError(error, "probeCapabilities"));
       }
       const result = this.getObservedAvailability(target.feature, target.profile);
       if (result) results.push(result);

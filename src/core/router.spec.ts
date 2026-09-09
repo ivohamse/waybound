@@ -156,4 +156,29 @@ describe("Router provider injection", () => {
       availability: "unavailable", reason: "plan-restricted", httpStatus: 400,
     });
   });
+
+  it("records credential preflight failures during a probe", async () => {
+    const provider = makeProvider();
+    provider.capabilities.directions.authentication = { required: true, schemes: ["api-key"] };
+    const router = new Router({ provider });
+
+    const observations = await router.probeCapabilities({
+      coordinates: [[5.12, 52.09], [5.11, 52.10]],
+      targets: [{ feature: "directions", profile: "hike" }],
+    });
+
+    expect(observations).toMatchObject([{ availability: "unknown", reason: "credentials-rejected" }]);
+    expect(provider.getRoute).not.toHaveBeenCalled();
+  });
+
+  it("classifies HTTP 401 as rejected credentials", async () => {
+    const provider = makeProvider();
+    provider.getRoute.mockRejectedValueOnce(new WayboundError("PROVIDER_ERROR", "Unauthorized", { status: 401 }));
+    const router = new Router({ provider });
+
+    await expect(router.getRoute(query)).rejects.toMatchObject({ status: 401 });
+    expect(router.getObservedAvailability("directions", "hike")).toMatchObject({
+      availability: "unknown", reason: "credentials-rejected", httpStatus: 401,
+    });
+  });
 });

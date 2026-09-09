@@ -183,6 +183,8 @@ const map = new maplibregl.Map({
   },
 });
 state.map = map;
+// Playground-only diagnostic handle; not part of the published Waybound API.
+(window as Window & { __wayboundMap?: maplibregl.Map }).__wayboundMap = map;
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
 
 map.on("load", () => {

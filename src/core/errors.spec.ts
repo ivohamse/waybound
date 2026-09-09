@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { Router } from "./router";
 import { WayboundError } from "./errors";
 
 describe("WayboundError", () => {
@@ -23,16 +22,4 @@ describe("WayboundError", () => {
     expect(error.cause).toBe(cause);
   });
 
-  it("uses a typed error for unsupported providers", () => {
-    try {
-      new Router({
-        provider: "unsupported" as never,
-        apiKey: "test-key",
-      });
-      throw new Error("Expected Router construction to fail.");
-    } catch (error) {
-      expect(error).toBeInstanceOf(WayboundError);
-      expect((error as WayboundError).code).toBe("UNSUPPORTED_PROVIDER");
-    }
-  });
 });

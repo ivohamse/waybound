@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Router } from "../../src/index";
+import { Router, GraphHopperProvider } from "../../src/index";
 
 const apiKey = process.env.GRAPHHOPPER_API_KEY;
 
@@ -10,12 +10,10 @@ if (!apiKey) {
 }
 
 const router = new Router({
-  provider: "graphhopper",
-  apiKey,
-  http: {
+  provider: new GraphHopperProvider(apiKey, {
     timeoutMs: 5_000,
     maxRetries: 0,
-  },
+  }),
 });
 
 const UTRECHT_CENTRE: [number, number] = [5.12142, 52.09063];

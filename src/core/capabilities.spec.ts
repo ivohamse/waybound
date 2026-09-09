@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { Router } from "./router";
+import { Router, OpenRouteServiceProvider, GraphHopperProvider } from "../index";
 
 const EXPECTED_PROFILES = ["car", "bike", "hike"];
 
 describe("provider capabilities", () => {
   it("exposes OpenRouteService capabilities through the router", () => {
-    const router = new Router({ provider: "ors", apiKey: "test-key" });
+    const router = new Router({ provider: new OpenRouteServiceProvider("test-key") });
 
     expect(router.capabilities.directions.supported).toBe(true);
     expect(router.capabilities.nearest.supported).toBe(true);
@@ -24,8 +24,7 @@ describe("provider capabilities", () => {
 
   it("exposes GraphHopper option capabilities", () => {
     const router = new Router({
-      provider: "graphhopper",
-      apiKey: "test-key",
+      provider: new GraphHopperProvider("test-key"),
     });
 
     expect(router.capabilities.directions.profiles).toEqual(EXPECTED_PROFILES);
@@ -48,10 +47,9 @@ describe("provider capabilities", () => {
   });
 
   it("rejects an option that the selected provider does not support", async () => {
-    const ors = new Router({ provider: "ors", apiKey: "test-key" });
+    const ors = new Router({ provider: new OpenRouteServiceProvider("test-key") });
     const graphhopper = new Router({
-      provider: "graphhopper",
-      apiKey: "test-key",
+      provider: new GraphHopperProvider("test-key"),
     });
 
     await expect(

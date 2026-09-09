@@ -1,22 +1,24 @@
 import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Router, WayboundError, type Coordinate, type ProfileType, type ProviderType } from "waybound";
+import { Router, OpenRouteServiceProvider, GraphHopperProvider, WayboundError, type Coordinate, type ProfileType } from "waybound";
 import "./styles.css";
+
+type ProviderKey = "ors" | "graphhopper";
 
 type FeatureType = "route" | "nearest" | "matrix" | "isochrones";
 type RangeType = "time" | "distance";
 
 interface PlaygroundState {
-  provider: ProviderType;
+  provider: ProviderKey;
   profile: ProfileType;
   feature: FeatureType;
   coordinates: Coordinate[];
-  apiKeys: Partial<Record<ProviderType, string>>;
+  apiKeys: Partial<Record<ProviderKey, string>>;
   map?: Map;
 }
 
 const storedProvider = readLocalStorage("waybound-playground-provider");
-const initialProvider: ProviderType = storedProvider === "graphhopper" ? "graphhopper" : "ors";
+const initialProvider: ProviderKey = storedProvider === "graphhopper" ? "graphhopper" : "ors";
 
 const state: PlaygroundState = {
   provider: initialProvider,
@@ -247,13 +249,13 @@ function closeProviderDialog(): void {
 }
 
 function syncDialogApiKey(): void {
-  const provider = dialogProvider.value as ProviderType;
+  const provider = dialogProvider.value as ProviderKey;
   dialogApiKey.value = state.apiKeys[provider] ?? "";
   dialogApiKey.placeholder = provider === "ors" ? "ORS API key" : "GraphHopper API key";
 }
 
 function confirmProviderDialog(): void {
-  const provider = dialogProvider.value as ProviderType;
+  const provider = dialogProvider.value as ProviderKey;
   const apiKey = dialogApiKey.value.trim();
 
   state.provider = provider;
@@ -394,7 +396,11 @@ async function runFeature(): Promise<void> {
   runButton.textContent = "Running…";
 
   try {
-    const router = new Router({ provider: state.provider, apiKey, http: { timeoutMs: 10_000, maxRetries: 0 } });
+    const http = { timeoutMs: 10_000, maxRetries: 0 };
+    const provider = state.provider === "ors"
+      ? new OpenRouteServiceProvider(apiKey, http)
+      : new GraphHopperProvider(apiKey, http);
+    const router = new Router({ provider });
     if (state.feature === "route") await runRoute(router);
     if (state.feature === "nearest") await runNearest(router);
     if (state.feature === "matrix") await runMatrix(router);

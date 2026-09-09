@@ -128,6 +128,12 @@ export class Router {
 
   private observeFailure(feature: CapabilityFeature, profile: ProfileType, error: WayboundError): ObservedCapabilityAvailability {
     if (error.status === 403) return this.observe(feature, profile, "unavailable", "access-restricted", error.status);
+    const message = error.providerMessage?.toLowerCase() ?? "";
+    const isKnownPlanRestriction = this.activeProvider.name === "GraphHopper"
+      && feature === "isochrones"
+      && error.status === 400
+      && /(?:premium|business|subscription|plan|account|credit)/.test(message);
+    if (isKnownPlanRestriction) return this.observe(feature, profile, "unavailable", "plan-restricted", error.status);
     const reasons: Partial<Record<WayboundError["code"], AvailabilityReason>> = {
       RATE_LIMITED: "rate-limited", REQUEST_TIMEOUT: "timeout", NETWORK_ERROR: "network-error",
       PROVIDER_ERROR: "provider-error", MISSING_CREDENTIAL: "credentials-rejected",

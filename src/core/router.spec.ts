@@ -142,4 +142,18 @@ describe("Router provider injection", () => {
     expect(provider.getIsochrones).toHaveBeenCalledOnce();
     expect(router.getObservedAvailability("isochrones", "hike")?.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
+
+  it("records a recognized GraphHopper isochrone plan restriction as unavailable", async () => {
+    const provider = makeProvider();
+    provider.name = "GraphHopper";
+    provider.getIsochrones.mockRejectedValueOnce(new WayboundError(
+      "PROVIDER_ERROR", "Provider rejected request", { status: 400, providerMessage: "This feature requires a premium account." },
+    ));
+    const router = new Router({ provider });
+
+    await expect(router.getIsochrones({ coordinate: [5.12, 52.09], profile: "hike", options: { rangeType: "time", ranges: [300] } })).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+    expect(router.getObservedAvailability("isochrones", "hike")).toMatchObject({
+      availability: "unavailable", reason: "plan-restricted", httpStatus: 400,
+    });
+  });
 });

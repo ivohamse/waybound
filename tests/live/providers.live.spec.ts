@@ -4,7 +4,7 @@ import {
   type Coordinate, type RoutingProvider,
 } from "../../src/index";
 import { buildCases, caseId, liveSettings, type LiveCase } from "./support/matrix";
-import { MissingCredentialError, recordCase } from "./support/record";
+import { MissingCredentialError, recordCase, recordUnavailable, UnavailableCapabilityError } from "./support/record";
 
 const settings = liveSettings(process.env);
 const http = { timeoutMs: settings.timeoutMs, maxRetries: 0 };
@@ -25,8 +25,8 @@ function expectCoordinate(value: number[]) {
   expect(Math.abs(value[1])).toBeLessThanOrEqual(90);
 }
 
-async function exercise(test: LiveCase, provider: RoutingProvider) {
-  const router = new Router({ provider });
+async function exercise(test: LiveCase, router: Router) {
+  const provider = { name: router.providerName, capabilities: router.capabilities } as RoutingProvider;
   const profile = test.profile;
   if (test.feature === "directions") {
     const response = await router.getRoute({ coordinates, profile, options: { instructions: true, language: "en" } });
@@ -110,13 +110,25 @@ describe("live provider capability matrix", () => {
   for (const definition of providers) {
     const apiKey = process.env[definition.credential];
     const provider = definition.create(apiKey ?? "");
+    const router = new Router({ provider });
     for (const test of buildCases(provider)) {
       it(caseId(test), async () => {
+        if (router.getObservedAvailability(test.feature, test.profile)?.availability === "unavailable") {
+          recordUnavailable(test);
+          return;
+        }
         // Sleep before Router creates AbortSignal.timeout, so pacing cannot consume its timeout.
         if (apiKey && previousRequestFinished) await new Promise((resolve) => setTimeout(resolve, settings.delayMs));
         await recordCase(test, async () => {
           if (!apiKey) throw new MissingCredentialError(`Missing ${definition.credential}. Configure it in .env or select another provider with WAYBOUND_LIVE_PROVIDERS.`);
-          try { await exercise(test, provider); }
+          try {
+            await exercise(test, router);
+          } catch (error) {
+            if (router.getObservedAvailability(test.feature, test.profile)?.availability === "unavailable") {
+              throw new UnavailableCapabilityError("Capability unavailable for this provider/account.");
+            }
+            throw error;
+          }
           finally { previousRequestFinished = true; }
         });
       }, settings.timeoutMs + settings.delayMs + 10_000);

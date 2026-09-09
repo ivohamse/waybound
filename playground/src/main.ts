@@ -40,6 +40,7 @@ const state: PlaygroundState = {
 };
 
 let providerDialogRequired = true;
+let activeRouter: Router | undefined;
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing #app element");
@@ -281,6 +282,7 @@ function confirmProviderDialog(): void {
 
   state.provider = provider;
   state.apiKeys[provider] = apiKey;
+  activeRouter = undefined;
   writeLocalStorage("waybound-playground-provider", provider);
   writeSessionStorage(`waybound-playground-api-key-${provider}`, apiKey);
 
@@ -421,7 +423,12 @@ async function runFeature(): Promise<void> {
   runButton.textContent = "Running…";
 
   try {
-    const router = new Router({ provider: createProvider(state.provider, apiKey) });
+    const router = activeRouter ??= new Router({ provider: createProvider(state.provider, apiKey) });
+    const availability = router.getObservedAvailability(capabilityFeature[state.feature], state.profile);
+    if (availability?.availability === "unavailable") {
+      showError(`This ${state.feature} feature is not available for the configured provider/account (${availability.reason ?? "restricted"}).`);
+      return;
+    }
     if (state.feature === "route") await runRoute(router);
     if (state.feature === "nearest") await runNearest(router);
     if (state.feature === "matrix") await runMatrix(router);
@@ -435,6 +442,10 @@ async function runFeature(): Promise<void> {
         "",
         error.message,
       ];
+      const observation = activeRouter?.getObservedAvailability(capabilityFeature[state.feature], state.profile);
+      if (observation?.availability === "unavailable") {
+        details.push("", `Availability: unavailable (${observation.reason ?? "restricted"}).`);
+      }
       showError(details.join("\n"));
     } else {
       showError(error instanceof Error ? error.message : String(error));

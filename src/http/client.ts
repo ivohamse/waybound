@@ -55,7 +55,7 @@ export class HttpClient {
           continue;
         }
 
-        throw this.createHttpError(response);
+        throw await this.createHttpError(response);
       } catch (error: unknown) {
         if (error instanceof WayboundError) {
           throw error;
@@ -109,7 +109,8 @@ export class HttpClient {
     }
   }
 
-  private createHttpError(response: Response): WayboundError {
+  private async createHttpError(response: Response): Promise<WayboundError> {
+    const providerMessage = await response.text().catch(() => "");
     if (response.status === 429) {
       return new WayboundError(
         "RATE_LIMITED",
@@ -117,6 +118,7 @@ export class HttpClient {
         {
           provider: this.providerName,
           status: response.status,
+          providerMessage,
         },
       );
     }
@@ -127,6 +129,7 @@ export class HttpClient {
       {
         provider: this.providerName,
         status: response.status,
+        providerMessage,
       },
     );
   }

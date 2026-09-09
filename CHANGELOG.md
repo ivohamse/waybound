@@ -6,6 +6,8 @@ Waybound is still in active pre-1.0 development. This changelog tracks notable c
 
 ### Changed
 
+- Live provider errors and account limitations now fail tests instead of being
+  accepted as diagnostic successes. Old latest reports are cleared before each run.
 - **Breaking:** `RouterConfig.provider` now takes a `RoutingProvider` instance
   instead of a provider-name string. Pass API keys and HTTP options to the
   provider constructor, e.g. `new Router({ provider: new OpenRouteServiceProvider(apiKey, http) })`.
@@ -15,6 +17,11 @@ Waybound is still in active pre-1.0 development. This changelog tracks notable c
 
 ### Added
 
+- Capability-driven live coverage across both providers and all supported profiles,
+  including separate time/distance isochrone cases (30 cases currently).
+- Sequential live requests with configurable provider selection, pacing and timeout.
+- Provider, feature, profile, HTTP and timing metadata in live JSON/log reports.
+- Regression coverage for diagnostic failures and report-runner failure handling.
 - Public package-root exports for `RoutingProvider`, `OpenRouteServiceProvider`
   and `GraphHopperProvider`, including support for custom provider implementations.
 

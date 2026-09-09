@@ -1,4 +1,4 @@
-import { mkdir, copyFile, writeFile, access } from "node:fs/promises";
+import { mkdir, copyFile, writeFile, access, readFile, rm } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -12,6 +12,7 @@ if (mode !== "unit" && mode !== "live") {
 const root = process.cwd();
 const outputDir = resolve(root, "test-output", mode);
 const jsonPath = resolve(outputDir, "latest.json");
+const metadataPath = resolve(outputDir, "live-metadata.jsonl");
 const logPath = resolve(outputDir, "latest.log");
 const vitestBin = resolve(root, "node_modules", "vitest", "vitest.mjs");
 
@@ -19,6 +20,9 @@ await mkdir(outputDir, { recursive: true });
 if (mode === "live") {
   await mkdir(resolve(outputDir, "history"), { recursive: true });
 }
+
+// A crashed run must never reuse the previous successful report.
+await Promise.all([jsonPath, logPath, metadataPath].map((path) => rm(path, { force: true })));
 
 const args = [
   vitestBin,
@@ -28,11 +32,12 @@ const args = [
   "--reporter=default",
   "--reporter=json",
   `--outputFile.json=${jsonPath}`,
+  ...process.argv.slice(3),
 ];
 
 const child = spawn(process.execPath, args, {
   cwd: root,
-  env: process.env,
+  env: { ...process.env, ...(mode === "live" ? { WAYBOUND_LIVE_METADATA_FILE: metadataPath } : {}) },
   stdio: ["inherit", "pipe", "pipe"],
 });
 
@@ -61,6 +66,31 @@ try {
 }
 
 if (mode === "live") {
+  let metadata = "";
+  try {
+    metadata = await readFile(metadataPath, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const cases = metadata.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const report = JSON.parse(await readFile(jsonPath, "utf8"));
+  report.waybound = {
+    schemaVersion: 1,
+    recordedCases: cases.length,
+    passed: cases.filter((test) => test.status === "passed").length,
+    failed: cases.filter((test) => test.status === "failed").length,
+    cases,
+  };
+  await writeFile(jsonPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+  const summary = [
+    "\nWaybound live execution details:",
+    ...cases.map((test) => `${test.status.toUpperCase()} ${test.id} | HTTP ${test.http.map((request) => request.status ?? request.transportError).join(", ") || "none"} | ${test.wayboundErrorCode ?? test.failureKind ?? "OK"} | ${test.durationMs.toFixed(1)} ms`),
+    `${cases.length} cases recorded; consult the Vitest summary for skipped tests and collection failures.`,
+    "",
+  ].join("\n");
+  process.stdout.write(summary);
+  await writeFile(logPath, log + summary, "utf8");
+  await rm(metadataPath, { force: true });
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   await copyFile(jsonPath, resolve(outputDir, "history", `${timestamp}.json`));
 }

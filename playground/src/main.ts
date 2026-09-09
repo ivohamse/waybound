@@ -178,28 +178,26 @@ const map = new maplibregl.Map({
         tileSize: 256,
         attribution: "© OpenStreetMap contributors",
       },
+      route: { type: "geojson", data: emptyFeatureCollection() },
+      "nearest-lines": { type: "geojson", data: emptyFeatureCollection() },
+      "nearest-points": { type: "geojson", data: emptyFeatureCollection() },
+      isochrones: { type: "geojson", data: emptyFeatureCollection() },
     },
-    layers: [{ id: "osm", type: "raster", source: "osm" }],
+    layers: [
+      { id: "osm", type: "raster", source: "osm" },
+      { id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": isochroneColorExpression, "fill-opacity": 0.24 }, layout: { "fill-sort-key": ["-", ["get", "index"]] } },
+      { id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": isochroneColorExpression, "line-width": 2.25, "line-opacity": 0.9 }, layout: { "line-sort-key": ["-", ["get", "index"]] } },
+      { id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } },
+      { id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } },
+      { id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } },
+      { id: "nearest-points-layer", type: "circle", source: "nearest-points", paint: { "circle-radius": 7, "circle-color": "#7c3aed", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } },
+    ],
   },
 });
 state.map = map;
 // Playground-only diagnostic handle; not part of the published Waybound API.
 (window as Window & { __wayboundMap?: maplibregl.Map }).__wayboundMap = map;
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
-
-map.on("load", () => {
-  addGeoJsonSource("route");
-  addGeoJsonSource("nearest-lines");
-  addGeoJsonSource("nearest-points");
-  addGeoJsonSource("isochrones");
-
-  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": isochroneColorExpression, "fill-opacity": 0.24 }, layout: { "fill-sort-key": ["-", ["get", "index"]] } });
-  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": isochroneColorExpression, "line-width": 2.25, "line-opacity": 0.9 }, layout: { "line-sort-key": ["-", ["get", "index"]] } });
-  map.addLayer({ id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } });
-  map.addLayer({ id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } });
-  map.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } });
-  map.addLayer({ id: "nearest-points-layer", type: "circle", source: "nearest-points", paint: { "circle-radius": 7, "circle-color": "#7c3aed", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
-});
 
 const markers: maplibregl.Marker[] = [];
 
@@ -304,10 +302,6 @@ function updateProviderUi(): void {
   const label = providerLabel();
   providerSwitch.textContent = `${label} ▾`;
   providerBadge.textContent = label;
-}
-
-function addGeoJsonSource(id: string): void {
-  map.addSource(id, { type: "geojson", data: emptyFeatureCollection() });
 }
 
 function maxPointsForFeature(): number {
@@ -611,7 +605,10 @@ function setSourceData(id: string, data: object): void {
   if (!source) return;
 
   source.setData(data as never);
-  console.debug("[Waybound playground] source data after setData", { id, data: source.serialize().data });
+  console.debug("[Waybound playground] source data after setData", {
+    id,
+    data: source.serialize().data,
+  });
 }
 
 function emptyFeatureCollection(): { type: "FeatureCollection"; features: never[] } {

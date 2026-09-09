@@ -39,5 +39,7 @@ export function liveSettings(env: Record<string, string | undefined>) {
     providers: [...new Set(providers)],
     delayMs: readMs("WAYBOUND_LIVE_DELAY_MS", 1_500, 0),
     timeoutMs: readMs("WAYBOUND_LIVE_TIMEOUT_MS", 10_000, 1),
+    orsBaseUrl: env.ORS_BASE_URL?.trim() || undefined,
+    graphHopperBaseUrl: env.GRAPHHOPPER_BASE_URL?.trim() || undefined,
   };
 }

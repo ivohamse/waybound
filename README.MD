@@ -114,8 +114,22 @@ Custom providers can expose an authentication-free feature with
 `authenticationSchemes` list on the provider instance. Credentials themselves are
 never exposed through `Router` or capabilities.
 
-Provider configuration deliberately leaves endpoint URLs out of scope for now.
-See issue #24 for self-hosted and custom-endpoint support.
+### Custom endpoints
+
+Built-in providers use their public hosted API by default. Set `baseUrl` to use a
+compatible self-hosted or alternative endpoint; a trailing slash is normalized.
+
+```ts
+const provider = new GraphHopperProvider({
+  baseUrl: "http://localhost:8989/api/1",
+  authentication: { type: "api-key", value: "YOUR_API_KEY" },
+});
+```
+
+`baseUrl` must be an absolute HTTP(S) URL without query parameters or a hash.
+The endpoint's enabled features and authentication policy remain the consumer's
+responsibility; static capabilities describe the adapter, not a particular account
+or server deployment.
 
 ## Core conventions
 

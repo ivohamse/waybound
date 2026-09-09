@@ -8,6 +8,9 @@ import {
   IsochroneQuery,
   Coordinate,
 } from "#types";
+import { normalizeBaseUrl } from "../base-url";
+
+const DEFAULT_BASE_URL = "https://graphhopper.com/api/1";
 
 export interface GraphHopperIsochroneRequest {
   request: HttpRequest;
@@ -15,11 +18,12 @@ export interface GraphHopperIsochroneRequest {
 }
 
 export class GraphHopperRequestBuilder {
-  private readonly baseUrl = "https://graphhopper.com/api/1";
+  private readonly baseUrl: string;
   private apiKey?: string;
 
-  constructor(apiKey?: string) {
+  constructor(apiKey?: string, baseUrl = DEFAULT_BASE_URL) {
     this.apiKey = apiKey;
+    this.baseUrl = normalizeBaseUrl(baseUrl, "GraphHopper");
   }
 
   private mapProfile(profile: ProfileType): string {

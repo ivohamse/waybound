@@ -78,12 +78,16 @@ Configure `.env` in the repository root (or equivalent environment variables):
 ```dotenv
 ORS_API_KEY=your-key
 GRAPHHOPPER_API_KEY=your-key
+ORS_BASE_URL=http://localhost:8080/openrouteservice
+GRAPHHOPPER_BASE_URL=http://localhost:8989/api/1
 WAYBOUND_LIVE_PROVIDERS=ors,graphhopper
 WAYBOUND_LIVE_DELAY_MS=1500
 WAYBOUND_LIVE_TIMEOUT_MS=10000
 ```
 
-The three `WAYBOUND_LIVE_*` settings are optional; the values shown are defaults.
+The `ORS_BASE_URL` and `GRAPHHOPPER_BASE_URL` settings are optional; omit either to
+use the public hosted endpoint. The three `WAYBOUND_LIVE_*` settings are optional;
+the values shown are defaults.
 Use `WAYBOUND_LIVE_PROVIDERS=ors` or `graphhopper` to test just one account. Unknown
 provider names fail configuration rather than silently producing no coverage.
 Missing credentials fail the selected cases and are marked `configuration`.

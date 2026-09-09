@@ -6,13 +6,17 @@ import {
   MatrixQuery,
   IsochroneQuery,
 } from "#types";
+import { normalizeBaseUrl } from "../base-url";
+
+const DEFAULT_BASE_URL = "https://api.heigit.org/openrouteservice";
 
 export class OrsRequestBuilder {
-  private readonly baseUrl = "https://api.heigit.org/openrouteservice";
+  private readonly baseUrl: string;
   private apiKey?: string;
 
-  constructor(apiKey?: string) {
+  constructor(apiKey?: string, baseUrl = DEFAULT_BASE_URL) {
     this.apiKey = apiKey;
+    this.baseUrl = normalizeBaseUrl(baseUrl, "OpenRouteService");
   }
 
   private mapProfile(profile: ProfileType): string {

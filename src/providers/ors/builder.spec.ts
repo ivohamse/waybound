@@ -59,4 +59,13 @@ describe("OrsRequestBuilder", () => {
 
     expect(request.headers).not.toHaveProperty("Authorization");
   });
+
+  it("uses a normalized custom API root", () => {
+    const request = new OrsRequestBuilder(undefined, "http://localhost:8080/openrouteservice/")
+      .buildRouteRequest({ coordinates: [[5.121, 52.09], [5.111, 52.09]], profile: "hike" });
+
+    const url = new URL(request.url);
+    expect(url.origin).toBe("http://localhost:8080");
+    expect(url.pathname).toBe("/openrouteservice/v2/directions/foot-hiking/geojson");
+  });
 });

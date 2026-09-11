@@ -38,16 +38,19 @@ same mode concurrently: they share the `latest` files.
   a compact provider/feature/profile, HTTP status, error and timing summary.
 - `latest.json` retains Vitest's normal summary and per-test results, including
   failed/skipped tests, timings, messages and stack traces.
-- Live JSON adds a `waybound` object (`schemaVersion: 1`) with execution records.
-  The normal Vitest results remain authoritative for test-run success, skipped
-  tests, collection errors and runner timeouts. A record is written when a case
-  completes, so a worker crash may leave fewer records than declared tests.
+- Live JSON adds a `waybound` object (`schemaVersion: 2`) with execution records.
+  Its `outcome` is `passed`, `inconclusive` or `failed`; use it to interpret the
+  live-provider result. The normal Vitest results remain authoritative for runner
+  failures, skipped tests, collection errors and timeouts. A record is written
+  when a case completes, so a worker crash may leave fewer records than declared
+  tests.
 - Live history stores the enriched JSON, not just the original Vitest output.
 - Old `latest` files are cleared before running. A startup failure cannot reuse a
   previous successful report. Completed history remains available.
 
-The runner preserves Vitest's exit code. Writing a report never turns a failed
-provider call into a successful test. Reporting failures also cause a nonzero exit.
+The runner preserves Vitest's exit code. A live rate limit is reported as
+`inconclusive`, not as a passing capability check or a library failure. Reporting
+failures still cause a nonzero exit.
 
 ## Live coverage
 
@@ -81,33 +84,42 @@ GRAPHHOPPER_API_KEY=your-key
 ORS_BASE_URL=http://localhost:8080/openrouteservice
 GRAPHHOPPER_BASE_URL=http://localhost:8989/api/1
 WAYBOUND_LIVE_PROVIDERS=ors,graphhopper
-WAYBOUND_LIVE_DELAY_MS=1500
+WAYBOUND_LIVE_ORS_DELAY_MS=0
+WAYBOUND_LIVE_GRAPHHOPPER_DELAY_MS=1500
+WAYBOUND_LIVE_MAX_RETRY_AFTER_MS=10000
 WAYBOUND_LIVE_TIMEOUT_MS=10000
 ```
 
 The `ORS_BASE_URL` and `GRAPHHOPPER_BASE_URL` settings are optional; omit either to
-use the public hosted endpoint. The three `WAYBOUND_LIVE_*` settings are optional;
-the values shown are defaults.
+use the public hosted endpoint. The `WAYBOUND_LIVE_*` settings are optional; the
+values shown are defaults. `WAYBOUND_LIVE_DELAY_MS` is an optional common fallback
+for both providers; a provider-specific delay overrides it. The hosted GraphHopper
+endpoint gets a conservative 1500 ms default while OpenRouteService has no added
+delay by default.
 Use `WAYBOUND_LIVE_PROVIDERS=ors` or `graphhopper` to test just one account. Unknown
 provider names fail configuration rather than silently producing no coverage.
 Missing credentials fail the selected cases and are marked `configuration`.
 Unselected providers are outside the run's coverage, not successful tests.
 
-Calls run sequentially with no HTTP or test retries. The pause is between cases,
-before the HTTP timeout starts. Delay may be 0–60000 ms; timeout 1–60000 ms. Raise
-the delay if your account needs more spacing. This does not bypass daily quotas
-or account feature restrictions: 429, 400/403, timeouts and invalid responses
-remain failures. Thirty cases at the default delay take at least about 44 seconds,
-plus provider response time.
+Calls run sequentially. The pause is per provider and occurs between its cases,
+before the HTTP timeout starts. A rate-limited call is retried at most once when its
+`Retry-After` is at most `WAYBOUND_LIVE_MAX_RETRY_AFTER_MS` (default 10000 ms). A
+longer or absent value is immediately inconclusive, without a second request. Delay
+and the retry budget may be 0–60000 ms; timeout 1–60000 ms. Raise the delay if an
+account needs more spacing. This does not bypass daily quotas or account feature
+restrictions: an exhausted 429 is inconclusive; 400/403, timeouts and invalid
+responses remain failures.
 
 ## Live metadata
 
 Each `waybound.cases` item includes:
 
 - `id`, `provider`, `feature`, `profile`, optional `rangeType` and `startedAt`;
-- `status`: `passed` only after the call and its assertions succeed, or `failed`;
+- `status`: `passed` only after the call and its assertions succeed; `failed`; or
+  `inconclusive` when a rate limit prevents a meaningful result;
 - `durationMs`: total operation and assertion time, excluding the pacing pause;
-- `http`: observed HTTP attempts with `status` and `responseHeadersMs`;
+- `http`: observed HTTP attempts with `status`, `responseHeadersMs` and, for a
+  429 with a valid header, `retryAfterMs`;
 - `wayboundErrorCode`, when the failure is a typed Waybound error;
 - `failureKind`: rate-limit, timeout, network, provider, invalid-response,
   configuration or assertion.

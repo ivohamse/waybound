@@ -1,17 +1,19 @@
 # Errors
 
-## Goal
+Waybound normalizes validation, capability, provider and network failures as `WayboundError`.
 
-Help applications distinguish validation, authentication, provider and rate-limit failures.
+```ts
+import { WayboundError } from "waybound";
 
-## Planned contents
+try {
+  // Waybound request
+} catch (error) {
+  if (error instanceof WayboundError) {
+    console.error(error.code, error.message);
+  }
+}
+```
 
-- `WayboundError` and error codes
-- HTTP status and provider messages
-- Retryable versus non-retryable failures
-- User-facing error handling patterns
+Use `code` for application behaviour and `message` for diagnostics. Where available, errors also contain provider, HTTP-status and provider-message context.
 
-## Related guides
-
-- [Configuration](configuration.md)
-- [Capabilities and availability](capabilities.md)
+`MISSING_CREDENTIAL` and `UNSUPPORTED_AUTHENTICATION` are raised before a request is sent. Treat rate limits, timeouts and unavailable providers as operational conditions rather than permanent entitlement decisions.

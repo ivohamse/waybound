@@ -1,15 +1,25 @@
 import * as maplibregl from "maplibre-gl";
 import { type GeoJSONSource, type Map } from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import DOMPurify from "dompurify";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Router, OpenRouteServiceProvider, GraphHopperProvider, WayboundError, type Coordinate, type ProfileType, type ProviderCapabilities } from "waybound";
 import "./styles.css";
+
+// Let Vite emit a real worker asset. Without this, MapLibre's GeoJSON worker
+// can fail to start even though raster tiles and HTML markers still render.
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 type ProviderKey = "ors" | "graphhopper";
 
 type FeatureType = "route" | "nearest" | "matrix" | "isochrones";
 type RangeType = "time" | "distance";
 type CapabilityFeature = keyof ProviderCapabilities;
+
+const isochroneColorExpression = [
+  "match", ["get", "index"],
+  0, "#eab308", 1, "#f97316", 2, "#ef4444", 3, "#db2777", 4, "#9333ea", "#2563eb",
+] as const;
 
 const capabilityFeature: Record<FeatureType, CapabilityFeature> = {
   route: "directions",
@@ -186,8 +196,8 @@ map.on("load", () => {
   addGeoJsonSource("nearest-points");
   addGeoJsonSource("isochrones");
 
-  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": "#2563eb", "fill-opacity": 0.18 } });
-  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": "#2563eb", "line-width": 2, "line-opacity": 0.8 } });
+  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": isochroneColorExpression, "fill-opacity": 0.24 }, layout: { "fill-sort-key": ["-", ["get", "index"]] } });
+  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": isochroneColorExpression, "line-width": 2.25, "line-opacity": 0.9 }, layout: { "line-sort-key": ["-", ["get", "index"]] } });
   map.addLayer({ id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } });
   map.addLayer({ id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } });
   map.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } });
@@ -297,10 +307,6 @@ function updateProviderUi(): void {
   const label = providerLabel();
   providerSwitch.textContent = `${label} ▾`;
   providerBadge.textContent = label;
-}
-
-function addGeoJsonSource(id: string): void {
-  map.addSource(id, { type: "geojson", data: emptyFeatureCollection() });
 }
 
 function maxPointsForFeature(): number {
@@ -465,7 +471,10 @@ async function runRoute(router: Router): Promise<void> {
   const route = response.routes[0];
   if (!route) throw new Error("Provider returned no route.");
 
-  setSourceData("route", { type: "Feature", properties: {}, geometry: route.geometry });
+  setSourceData("route", {
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: {}, geometry: route.geometry }],
+  });
   fitCoordinates(route.geometry.coordinates as Coordinate[]);
   renderResult(response.provider, `
     <div class="metric-grid">
@@ -590,7 +599,11 @@ function flattenGeometryCoordinates(value: unknown): Coordinate[] {
 
 function setSourceData(id: string, data: object): void {
   const source = map.getSource(id) as GeoJSONSource | undefined;
-  if (source) source.setData(data as never);
+  if (source) void source.setData(data as never);
+}
+
+function addGeoJsonSource(id: string): void {
+  map.addSource(id, { type: "geojson", data: emptyFeatureCollection() });
 }
 
 function emptyFeatureCollection(): { type: "FeatureCollection"; features: never[] } {

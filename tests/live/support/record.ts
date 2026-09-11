@@ -11,7 +11,7 @@ export interface HttpObservation {
 export interface LiveRecord extends LiveCase {
   id: string;
   startedAt: string;
-  status: "passed" | "failed" | "skipped";
+  status: "passed" | "failed" | "skipped" | "inconclusive";
   durationMs: number;
   http: HttpObservation[];
   wayboundErrorCode: string | null;
@@ -63,7 +63,13 @@ export async function recordCase(test: LiveCase, execute: () => Promise<void>, s
       record.failureKind = error.code === "RATE_LIMITED" ? "rate-limit"
         : error.code === "REQUEST_TIMEOUT" ? "timeout"
         : error.code === "NETWORK_ERROR" ? "network"
-        : error.code === "INVALID_RESPONSE" ? "invalid-response" : "provider";
+      : error.code === "INVALID_RESPONSE" ? "invalid-response" : "provider";
+      if (error.code === "RATE_LIMITED") {
+        // A rate-limited live call cannot establish whether Waybound's public
+        // contract works, but it is not evidence of a library regression.
+        record.status = "inconclusive";
+        return;
+      }
     } else {
       record.failureKind = error instanceof MissingCredentialError ? "configuration" : "assertion";
     }

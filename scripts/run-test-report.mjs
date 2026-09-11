@@ -75,17 +75,20 @@ if (mode === "live") {
   const cases = metadata.split("\n").filter(Boolean).map((line) => JSON.parse(line));
   const report = JSON.parse(await readFile(jsonPath, "utf8"));
   report.waybound = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     recordedCases: cases.length,
     passed: cases.filter((test) => test.status === "passed").length,
     failed: cases.filter((test) => test.status === "failed").length,
+    skipped: cases.filter((test) => test.status === "skipped").length,
+    inconclusive: cases.filter((test) => test.status === "inconclusive").length,
+    outcome: exitCode !== 0 ? "failed" : cases.some((test) => test.status === "inconclusive") ? "inconclusive" : "passed",
     cases,
   };
   await writeFile(jsonPath, JSON.stringify(report, null, 2) + "\n", "utf8");
   const summary = [
     "\nWaybound live execution details:",
     ...cases.map((test) => `${test.status.toUpperCase()} ${test.id} | HTTP ${test.http.map((request) => request.status ?? request.transportError).join(", ") || "none"} | ${test.wayboundErrorCode ?? test.failureKind ?? "OK"} | ${test.durationMs.toFixed(1)} ms`),
-    `${cases.length} cases recorded; consult the Vitest summary for skipped tests and collection failures.`,
+    `${cases.length} cases recorded; ${cases.filter((test) => test.status === "inconclusive").length} inconclusive. Consult the Vitest summary for skipped tests and collection failures.`,
     "",
   ].join("\n");
   process.stdout.write(summary);

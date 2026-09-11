@@ -4,7 +4,7 @@ A unified TypeScript routing API for multiple providers.
 
 Waybound gives applications a consistent, type-safe interface for routing, nearest-point lookup, matrices and isochrones, independent of the selected provider.
 
-> **Status: alpha.** Breaking changes may occur before v1.0. [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md)
+> **Status: alpha.** Breaking changes may occur before v1.0. [Roadmap](https://github.com/ivohamse/waybound/blob/main/docs/roadmap.md) · [Changelog](https://github.com/ivohamse/waybound/blob/main/CHANGELOG.md)
 
 ## Supported providers
 
@@ -15,7 +15,7 @@ Waybound gives applications a consistent, type-safe interface for routing, neare
 | Matrix | ✅ | ✅ |
 | Isochrones | ✅ | ✅ |
 
-See [Providers](docs/providers.md) for provider-specific notes and configuration.
+See [Providers](https://github.com/ivohamse/waybound/blob/main/docs/providers.md) for provider-specific notes and configuration.
 
 ## Features
 
@@ -62,14 +62,14 @@ console.log(route.distance, route.duration, route.geometry);
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md)
-- [Configuration](docs/configuration.md)
-- [Providers](docs/providers.md)
-- [Capabilities and availability](docs/capabilities.md)
-- [Errors](docs/errors.md)
-- [Live testing](docs/live-testing.md)
-- [Playground](docs/playground.md)
-- [Contributing](docs/contributing.md)
+- [Getting started](https://github.com/ivohamse/waybound/blob/main/docs/getting-started.md)
+- [Configuration](https://github.com/ivohamse/waybound/blob/main/docs/configuration.md)
+- [Providers](https://github.com/ivohamse/waybound/blob/main/docs/providers.md)
+- [Capabilities and availability](https://github.com/ivohamse/waybound/blob/main/docs/capabilities.md)
+- [Errors](https://github.com/ivohamse/waybound/blob/main/docs/errors.md)
+- [Live testing](https://github.com/ivohamse/waybound/blob/main/docs/live-testing.md)
+- [Playground](https://github.com/ivohamse/waybound/blob/main/docs/playground.md)
+- [Contributing](https://github.com/ivohamse/waybound/blob/main/docs/contributing.md)
 
 ## License
 

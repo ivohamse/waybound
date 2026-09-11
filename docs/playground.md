@@ -9,7 +9,7 @@ Install the repository dependencies, then start the playground:
 ```bash
 npm install
 npm --prefix playground install
-npm run playground:dev
+npm run playground
 ```
 
 For a production build check:

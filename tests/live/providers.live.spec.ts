@@ -6,10 +6,11 @@ import {
 import { buildCases, caseId, liveSettings, type LiveCase } from "./support/matrix";
 import { MissingCredentialError, recordCase, recordUnavailable, UnavailableCapabilityError } from "./support/record";
 import { ProviderPacer } from "./support/pacing";
+import { retryRateLimitedOnce } from "./support/retry";
 
 const settings = liveSettings(process.env);
-// Live runs make at most one retry. HttpClient honors Retry-After when present.
-const http = { timeoutMs: settings.timeoutMs, maxRetries: 1 };
+// The test harness performs its one bounded 429 retry, not the HTTP client.
+const http = { timeoutMs: settings.timeoutMs, maxRetries: 0 };
 const providers = [
   { key: "ors", credential: "ORS_API_KEY", create: (key: string) => new OpenRouteServiceProvider({ authentication: key ? { type: "api-key", value: key } : undefined, baseUrl: settings.orsBaseUrl, http }) },
   { key: "graphhopper", credential: "GRAPHHOPPER_API_KEY", create: (key: string) => new GraphHopperProvider({ authentication: key ? { type: "api-key", value: key } : undefined, baseUrl: settings.graphHopperBaseUrl, http }) },
@@ -126,10 +127,16 @@ describe("live provider capability matrix", () => {
         // Wait before Router creates AbortSignal.timeout, so pacing cannot consume it.
         if (apiKey) await pacer.wait(provider.name, providerDelayMs(provider.name));
         try {
-          await recordCase(test, async () => {
+          await recordCase(test, async (record) => {
             if (!apiKey) throw new MissingCredentialError(`Missing ${definition.credential}. Configure it in .env or select another provider with WAYBOUND_LIVE_PROVIDERS.`);
             try {
-              await exercise(test, router);
+              await retryRateLimitedOnce(
+                () => exercise(test, router),
+                {
+                  getRetryAfterMs: () => record.http.at(-1)?.retryAfterMs,
+                  maxRetryAfterMs: settings.maxRetryAfterMs,
+                },
+              );
             } catch (error) {
               if (router.getObservedAvailability(test.feature, test.profile)?.availability === "unavailable") {
                 throw new UnavailableCapabilityError("Capability unavailable for this provider/account.");
@@ -140,7 +147,7 @@ describe("live provider capability matrix", () => {
         } finally {
           if (apiKey) pacer.complete(provider.name);
         }
-      }, settings.timeoutMs * 2 + providerDelayMs(provider.name) + 10_000);
+      }, settings.timeoutMs * 2 + providerDelayMs(provider.name) + settings.maxRetryAfterMs + 10_000);
     }
   }
 });

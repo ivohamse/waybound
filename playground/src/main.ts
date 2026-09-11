@@ -183,26 +183,26 @@ const map = new maplibregl.Map({
         tileSize: 256,
         attribution: "© OpenStreetMap contributors",
       },
-      route: { type: "geojson", data: emptyFeatureCollection() },
-      "nearest-lines": { type: "geojson", data: emptyFeatureCollection() },
-      "nearest-points": { type: "geojson", data: emptyFeatureCollection() },
-      isochrones: { type: "geojson", data: emptyFeatureCollection() },
     },
-    layers: [
-      { id: "osm", type: "raster", source: "osm" },
-      { id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": isochroneColorExpression, "fill-opacity": 0.24 }, layout: { "fill-sort-key": ["-", ["get", "index"]] } },
-      { id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": isochroneColorExpression, "line-width": 2.25, "line-opacity": 0.9 }, layout: { "line-sort-key": ["-", ["get", "index"]] } },
-      { id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } },
-      { id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } },
-      { id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } },
-      { id: "nearest-points-layer", type: "circle", source: "nearest-points", paint: { "circle-radius": 7, "circle-color": "#7c3aed", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } },
-    ],
+    layers: [{ id: "osm", type: "raster", source: "osm" }],
   },
 });
 state.map = map;
-// Playground-only diagnostic handle; not part of the published Waybound API.
-(window as Window & { __wayboundMap?: maplibregl.Map }).__wayboundMap = map;
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+
+map.on("load", () => {
+  addGeoJsonSource("route");
+  addGeoJsonSource("nearest-lines");
+  addGeoJsonSource("nearest-points");
+  addGeoJsonSource("isochrones");
+
+  map.addLayer({ id: "isochrones-fill", type: "fill", source: "isochrones", paint: { "fill-color": isochroneColorExpression, "fill-opacity": 0.24 }, layout: { "fill-sort-key": ["-", ["get", "index"]] } });
+  map.addLayer({ id: "isochrones-outline", type: "line", source: "isochrones", paint: { "line-color": isochroneColorExpression, "line-width": 2.25, "line-opacity": 0.9 }, layout: { "line-sort-key": ["-", ["get", "index"]] } });
+  map.addLayer({ id: "nearest-lines-layer", type: "line", source: "nearest-lines", paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] } });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 } });
+  map.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 } });
+  map.addLayer({ id: "nearest-points-layer", type: "circle", source: "nearest-points", paint: { "circle-radius": 7, "circle-color": "#7c3aed", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
+});
 
 const markers: maplibregl.Marker[] = [];
 
@@ -407,12 +407,10 @@ function clearResult(resetVisuals = true): void {
 }
 
 function clearVisuals(): void {
-  void Promise.all([
-    setSourceData("route", emptyFeatureCollection()),
-    setSourceData("nearest-lines", emptyFeatureCollection()),
-    setSourceData("nearest-points", emptyFeatureCollection()),
-    setSourceData("isochrones", emptyFeatureCollection()),
-  ]).catch((error) => console.error("[Waybound playground] failed to clear map overlays", error));
+  setSourceData("route", emptyFeatureCollection());
+  setSourceData("nearest-lines", emptyFeatureCollection());
+  setSourceData("nearest-points", emptyFeatureCollection());
+  setSourceData("isochrones", emptyFeatureCollection());
 }
 
 async function runFeature(): Promise<void> {
@@ -473,17 +471,10 @@ async function runRoute(router: Router): Promise<void> {
   const route = response.routes[0];
   if (!route) throw new Error("Provider returned no route.");
 
-  const routeData = {
+  setSourceData("route", {
     type: "FeatureCollection",
     features: [{ type: "Feature", properties: {}, geometry: route.geometry }],
-  };
-  console.debug("[Waybound playground] route received", {
-    geometryType: route.geometry.type,
-    coordinateCount: flattenGeometryCoordinates(route.geometry.coordinates).length,
-    routeData,
   });
-  (window as Window & { __wayboundRouteData?: object }).__wayboundRouteData = routeData;
-  setSourceData("route", routeData);
   fitCoordinates(route.geometry.coordinates as Coordinate[]);
   renderResult(response.provider, `
     <div class="metric-grid">
@@ -608,16 +599,11 @@ function flattenGeometryCoordinates(value: unknown): Coordinate[] {
 
 function setSourceData(id: string, data: object): void {
   const source = map.getSource(id) as GeoJSONSource | undefined;
-  console.debug("[Waybound playground] setting source data", { id, hasSource: Boolean(source), data });
-  if (!source) return;
+  if (source) void source.setData(data as never);
+}
 
-  void source.setData(data as never).catch((error) => {
-    console.error("[Waybound playground] failed to update source data", { id, error });
-  });
-  console.debug("[Waybound playground] source data after setData", {
-    id,
-    data: source.serialize().data,
-  });
+function addGeoJsonSource(id: string): void {
+  map.addSource(id, { type: "geojson", data: emptyFeatureCollection() });
 }
 
 function emptyFeatureCollection(): { type: "FeatureCollection"; features: never[] } {

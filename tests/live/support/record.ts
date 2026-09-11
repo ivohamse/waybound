@@ -1,10 +1,12 @@
 import { appendFileSync } from "node:fs";
 import { WayboundError } from "../../../src/index";
+import { parseRetryAfter } from "../../../src/http/retry";
 import { caseId, type LiveCase } from "./matrix";
 
 export interface HttpObservation {
   status: number | null;
   responseHeadersMs: number;
+  retryAfterMs?: number;
   transportError?: "timeout" | "network";
 }
 
@@ -30,7 +32,7 @@ export function recordUnavailable(test: LiveCase): void {
 }
 
 // Scoped to the sequential live suite; never logs URLs, headers, keys or payloads.
-export async function recordCase(test: LiveCase, execute: () => Promise<void>, sink?: (record: LiveRecord) => void): Promise<void> {
+export async function recordCase(test: LiveCase, execute: (record: LiveRecord) => Promise<void>, sink?: (record: LiveRecord) => void): Promise<void> {
   const originalFetch = globalThis.fetch;
   const started = performance.now();
   const record: LiveRecord = {
@@ -41,7 +43,8 @@ export async function recordCase(test: LiveCase, execute: () => Promise<void>, s
     const start = performance.now();
     try {
       const response = await originalFetch(...args);
-      record.http.push({ status: response.status, responseHeadersMs: performance.now() - start });
+      const retryAfterMs = response.status === 429 ? parseRetryAfter(response.headers.get("Retry-After")) : undefined;
+      record.http.push({ status: response.status, responseHeadersMs: performance.now() - start, ...(retryAfterMs === undefined ? {} : { retryAfterMs }) });
       return response;
     } catch (error) {
       const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
@@ -63,7 +66,7 @@ export async function recordCase(test: LiveCase, execute: () => Promise<void>, s
       record.failureKind = error.code === "RATE_LIMITED" ? "rate-limit"
         : error.code === "REQUEST_TIMEOUT" ? "timeout"
         : error.code === "NETWORK_ERROR" ? "network"
-      : error.code === "INVALID_RESPONSE" ? "invalid-response" : "provider";
+        : error.code === "INVALID_RESPONSE" ? "invalid-response" : "provider";
       if (error.code === "RATE_LIMITED") {
         // A rate-limited live call cannot establish whether Waybound's public
         // contract works, but it is not evidence of a library regression.

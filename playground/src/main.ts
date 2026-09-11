@@ -402,10 +402,12 @@ function clearResult(resetVisuals = true): void {
 }
 
 function clearVisuals(): void {
-  setSourceData("route", emptyFeatureCollection());
-  setSourceData("nearest-lines", emptyFeatureCollection());
-  setSourceData("nearest-points", emptyFeatureCollection());
-  setSourceData("isochrones", emptyFeatureCollection());
+  void Promise.all([
+    setSourceData("route", emptyFeatureCollection()),
+    setSourceData("nearest-lines", emptyFeatureCollection()),
+    setSourceData("nearest-points", emptyFeatureCollection()),
+    setSourceData("isochrones", emptyFeatureCollection()),
+  ]).catch((error) => console.error("[Waybound playground] failed to clear map overlays", error));
 }
 
 async function runFeature(): Promise<void> {
@@ -476,7 +478,7 @@ async function runRoute(router: Router): Promise<void> {
     routeData,
   });
   (window as Window & { __wayboundRouteData?: object }).__wayboundRouteData = routeData;
-  setSourceData("route", routeData);
+  await setSourceData("route", routeData);
   fitCoordinates(route.geometry.coordinates as Coordinate[]);
   renderResult(response.provider, `
     <div class="metric-grid">
@@ -506,8 +508,10 @@ async function runNearest(router: Router): Promise<void> {
     lineFeatures.push({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [item.inputCoordinate, item.nearestPoint.coordinates] } });
   });
 
-  setSourceData("nearest-points", { type: "FeatureCollection", features: pointFeatures });
-  setSourceData("nearest-lines", { type: "FeatureCollection", features: lineFeatures });
+  await Promise.all([
+    setSourceData("nearest-points", { type: "FeatureCollection", features: pointFeatures }),
+    setSourceData("nearest-lines", { type: "FeatureCollection", features: lineFeatures }),
+  ]);
   fitCoordinates([...state.coordinates, ...response.points.flatMap((p) => p.nearestPoint ? [p.nearestPoint.coordinates as Coordinate] : [])]);
 
   renderResult(response.provider, `
@@ -544,7 +548,7 @@ async function runIsochrones(router: Router): Promise<void> {
   const ranges = parseRanges(document.querySelector<HTMLInputElement>("#ranges")?.value ?? "");
   const response = await router.getIsochrones({ coordinate: state.coordinates[0], profile: state.profile, options: { rangeType, ranges } });
 
-  setSourceData("isochrones", {
+  await setSourceData("isochrones", {
     type: "FeatureCollection",
     features: response.isochrones.map((item, index) => ({ type: "Feature", properties: { index }, geometry: item.geometry })),
   });
@@ -599,12 +603,12 @@ function flattenGeometryCoordinates(value: unknown): Coordinate[] {
   return value.flatMap(flattenGeometryCoordinates);
 }
 
-function setSourceData(id: string, data: object): void {
+async function setSourceData(id: string, data: object): Promise<void> {
   const source = map.getSource(id) as GeoJSONSource | undefined;
   console.debug("[Waybound playground] setting source data", { id, hasSource: Boolean(source), data });
   if (!source) return;
 
-  source.setData(data as never);
+  await source.setData(data as never);
   console.debug("[Waybound playground] source data after setData", {
     id,
     data: source.serialize().data,

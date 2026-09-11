@@ -62,8 +62,10 @@ describe("live capability matrix", () => {
   it("does not retry an unbounded rate limit", async () => {
     const error = new WayboundError("RATE_LIMITED", "Slow down");
     const execute = vi.fn<() => Promise<void>>().mockRejectedValue(error);
-    await expect(retryRateLimitedOnce(execute, { getRetryAfterMs: () => 10_001, maxRetryAfterMs: 10_000 })).rejects.toBe(error);
+    const sleep = vi.fn<() => Promise<void>>().mockResolvedValue();
+    await expect(retryRateLimitedOnce(execute, { getRetryAfterMs: () => 10_001, maxRetryAfterMs: 10_000, sleep })).rejects.toBe(error);
     expect(execute).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
   });
 
   it("paces each provider independently", async () => {

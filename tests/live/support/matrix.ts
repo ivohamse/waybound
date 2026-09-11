@@ -36,12 +36,14 @@ export function liveSettings(env: Record<string, string | undefined>) {
     }
     return value;
   };
+  const commonDelayConfigured = Boolean(env.WAYBOUND_LIVE_DELAY_MS?.trim());
   const delayMs = readMs("WAYBOUND_LIVE_DELAY_MS", 0, 0);
   return {
     providers: [...new Set(providers)],
     delayMs,
     orsDelayMs: readMs("WAYBOUND_LIVE_ORS_DELAY_MS", delayMs, 0),
-    graphHopperDelayMs: readMs("WAYBOUND_LIVE_GRAPHHOPPER_DELAY_MS", delayMs || 1_500, 0),
+    graphHopperDelayMs: readMs("WAYBOUND_LIVE_GRAPHHOPPER_DELAY_MS", commonDelayConfigured ? delayMs : 1_500, 0),
+    maxRetryAfterMs: readMs("WAYBOUND_LIVE_MAX_RETRY_AFTER_MS", 10_000, 0),
     timeoutMs: readMs("WAYBOUND_LIVE_TIMEOUT_MS", 10_000, 1),
     orsBaseUrl: env.ORS_BASE_URL?.trim() || undefined,
     graphHopperBaseUrl: env.GRAPHHOPPER_BASE_URL?.trim() || undefined,

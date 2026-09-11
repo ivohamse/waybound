@@ -1,9 +1,14 @@
 import * as maplibregl from "maplibre-gl";
 import { type GeoJSONSource, type Map } from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import DOMPurify from "dompurify";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Router, OpenRouteServiceProvider, GraphHopperProvider, WayboundError, type Coordinate, type ProfileType, type ProviderCapabilities } from "waybound";
 import "./styles.css";
+
+// Let Vite emit a real worker asset. Without this, MapLibre's GeoJSON worker
+// can fail to start even though raster tiles and HTML markers still render.
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 type ProviderKey = "ors" | "graphhopper";
 
@@ -478,7 +483,7 @@ async function runRoute(router: Router): Promise<void> {
     routeData,
   });
   (window as Window & { __wayboundRouteData?: object }).__wayboundRouteData = routeData;
-  await setSourceData("route", routeData);
+  setSourceData("route", routeData);
   fitCoordinates(route.geometry.coordinates as Coordinate[]);
   renderResult(response.provider, `
     <div class="metric-grid">
@@ -508,10 +513,8 @@ async function runNearest(router: Router): Promise<void> {
     lineFeatures.push({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [item.inputCoordinate, item.nearestPoint.coordinates] } });
   });
 
-  await Promise.all([
-    setSourceData("nearest-points", { type: "FeatureCollection", features: pointFeatures }),
-    setSourceData("nearest-lines", { type: "FeatureCollection", features: lineFeatures }),
-  ]);
+  setSourceData("nearest-points", { type: "FeatureCollection", features: pointFeatures });
+  setSourceData("nearest-lines", { type: "FeatureCollection", features: lineFeatures });
   fitCoordinates([...state.coordinates, ...response.points.flatMap((p) => p.nearestPoint ? [p.nearestPoint.coordinates as Coordinate] : [])]);
 
   renderResult(response.provider, `
@@ -548,7 +551,7 @@ async function runIsochrones(router: Router): Promise<void> {
   const ranges = parseRanges(document.querySelector<HTMLInputElement>("#ranges")?.value ?? "");
   const response = await router.getIsochrones({ coordinate: state.coordinates[0], profile: state.profile, options: { rangeType, ranges } });
 
-  await setSourceData("isochrones", {
+  setSourceData("isochrones", {
     type: "FeatureCollection",
     features: response.isochrones.map((item, index) => ({ type: "Feature", properties: { index }, geometry: item.geometry })),
   });
@@ -603,12 +606,14 @@ function flattenGeometryCoordinates(value: unknown): Coordinate[] {
   return value.flatMap(flattenGeometryCoordinates);
 }
 
-async function setSourceData(id: string, data: object): Promise<void> {
+function setSourceData(id: string, data: object): void {
   const source = map.getSource(id) as GeoJSONSource | undefined;
   console.debug("[Waybound playground] setting source data", { id, hasSource: Boolean(source), data });
   if (!source) return;
 
-  await source.setData(data as never);
+  void source.setData(data as never).catch((error) => {
+    console.error("[Waybound playground] failed to update source data", { id, error });
+  });
   console.debug("[Waybound playground] source data after setData", {
     id,
     data: source.serialize().data,

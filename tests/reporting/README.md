@@ -86,6 +86,7 @@ GRAPHHOPPER_BASE_URL=http://localhost:8989/api/1
 WAYBOUND_LIVE_PROVIDERS=ors,graphhopper
 WAYBOUND_LIVE_ORS_DELAY_MS=0
 WAYBOUND_LIVE_GRAPHHOPPER_DELAY_MS=1500
+WAYBOUND_LIVE_MAX_RETRY_AFTER_MS=10000
 WAYBOUND_LIVE_TIMEOUT_MS=10000
 ```
 
@@ -101,11 +102,13 @@ Missing credentials fail the selected cases and are marked `configuration`.
 Unselected providers are outside the run's coverage, not successful tests.
 
 Calls run sequentially. The pause is per provider and occurs between its cases,
-before the HTTP timeout starts. Each live request has at most one HTTP retry; the
-client respects a provider's `Retry-After` header. Delay may be 0–60000 ms; timeout
-1–60000 ms. Raise the delay if an account needs more spacing. This does not bypass
-daily quotas or account feature restrictions: an exhausted 429 is inconclusive;
-400/403, timeouts and invalid responses remain failures.
+before the HTTP timeout starts. A rate-limited call is retried at most once when its
+`Retry-After` is at most `WAYBOUND_LIVE_MAX_RETRY_AFTER_MS` (default 10000 ms). A
+longer or absent value is immediately inconclusive, without a second request. Delay
+and the retry budget may be 0–60000 ms; timeout 1–60000 ms. Raise the delay if an
+account needs more spacing. This does not bypass daily quotas or account feature
+restrictions: an exhausted 429 is inconclusive; 400/403, timeouts and invalid
+responses remain failures.
 
 ## Live metadata
 
@@ -115,7 +118,8 @@ Each `waybound.cases` item includes:
 - `status`: `passed` only after the call and its assertions succeed; `failed`; or
   `inconclusive` when a rate limit prevents a meaningful result;
 - `durationMs`: total operation and assertion time, excluding the pacing pause;
-- `http`: observed HTTP attempts with `status` and `responseHeadersMs`;
+- `http`: observed HTTP attempts with `status`, `responseHeadersMs` and, for a
+  429 with a valid header, `retryAfterMs`;
 - `wayboundErrorCode`, when the failure is a typed Waybound error;
 - `failureKind`: rate-limit, timeout, network, provider, invalid-response,
   configuration or assertion.

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { GraphHopperProvider, OpenRouteServiceProvider } from "../../src/index";
 import { buildCases, caseId, liveSettings, type LiveCase } from "../live/support/matrix";
+import { ProviderPacer } from "../live/support/pacing";
 import { MissingCredentialError, recordCase, type LiveRecord } from "../live/support/record";
 
 const testCase: LiveCase = { provider: "GraphHopper", feature: "matrix", profile: "hike" };
@@ -39,12 +40,27 @@ describe("live capability matrix", () => {
     expect(cases.filter((test) => test.feature === "nearest").map((test) => test.profile)).toEqual(["hike"]);
   });
 
-  it("validates provider selection and pacing settings", () => {
-    expect(liveSettings({})).toEqual({ providers: ["ors", "graphhopper"], delayMs: 1500, timeoutMs: 10000, orsBaseUrl: undefined, graphHopperBaseUrl: undefined });
-    expect(liveSettings({ WAYBOUND_LIVE_PROVIDERS: "ors", WAYBOUND_LIVE_DELAY_MS: "0" }).providers).toEqual(["ors"]);
+  it("validates provider selection and provider-specific pacing settings", () => {
+    expect(liveSettings({})).toEqual({ providers: ["ors", "graphhopper"], delayMs: 0, orsDelayMs: 0, graphHopperDelayMs: 1500, timeoutMs: 10000, orsBaseUrl: undefined, graphHopperBaseUrl: undefined });
+    expect(liveSettings({ WAYBOUND_LIVE_PROVIDERS: "ors", WAYBOUND_LIVE_DELAY_MS: "750", WAYBOUND_LIVE_ORS_DELAY_MS: "100" })).toMatchObject({ providers: ["ors"], delayMs: 750, orsDelayMs: 100, graphHopperDelayMs: 750 });
     expect(() => liveSettings({ WAYBOUND_LIVE_PROVIDERS: "typo" })).toThrow();
     expect(() => liveSettings({ WAYBOUND_LIVE_DELAY_MS: "-1" })).toThrow();
     expect(() => liveSettings({ WAYBOUND_LIVE_TIMEOUT_MS: "NaN" })).toThrow();
+  });
+
+  it("paces each provider independently", async () => {
+    vi.useFakeTimers();
+    try {
+      const pacer = new ProviderPacer();
+      pacer.complete("GraphHopper");
+      const delayed = pacer.wait("GraphHopper", 1_500);
+      const immediate = pacer.wait("OpenRouteService", 1_500);
+      await immediate;
+      await vi.advanceTimersByTimeAsync(1_500);
+      await delayed;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("reads optional custom provider endpoints", () => {
@@ -59,16 +75,16 @@ describe("live capability matrix", () => {
 });
 
 describe("live execution diagnostics", () => {
-  it("retains a real 429 as failure, records it and restores fetch", async () => {
+  it("records a real 429 as inconclusive and restores fetch", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 429 }));
     vi.stubGlobal("fetch", fetchMock);
     const records: LiveRecord[] = [];
     const provider = new GraphHopperProvider({ authentication: { type: "api-key", value: "not-a-real-key" }, http: { maxRetries: 0 } });
-    await expect(recordCase(testCase, async () => {
+    await recordCase(testCase, async () => {
       await provider.getMatrix({ coordinates: [[5.12, 52.09], [5.11, 52.10]], profile: "hike" });
-    }, (record) => records.push(record))).rejects.toMatchObject({ code: "RATE_LIMITED" });
+    }, (record) => records.push(record));
     expect(globalThis.fetch).toBe(fetchMock);
-    expect(records[0]).toMatchObject({ status: "failed", failureKind: "rate-limit", wayboundErrorCode: "RATE_LIMITED", http: [{ status: 429 }] });
+    expect(records[0]).toMatchObject({ status: "inconclusive", failureKind: "rate-limit", wayboundErrorCode: "RATE_LIMITED", http: [{ status: 429 }] });
     expect(JSON.stringify(records)).not.toContain("not-a-real-key");
     expect(JSON.stringify(records)).not.toContain("https:");
   });

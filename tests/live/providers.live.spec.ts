@@ -5,9 +5,11 @@ import {
 } from "../../src/index";
 import { buildCases, caseId, liveSettings, type LiveCase } from "./support/matrix";
 import { MissingCredentialError, recordCase, recordUnavailable, UnavailableCapabilityError } from "./support/record";
+import { ProviderPacer } from "./support/pacing";
 
 const settings = liveSettings(process.env);
-const http = { timeoutMs: settings.timeoutMs, maxRetries: 0 };
+// Live runs make at most one retry. HttpClient honors Retry-After when present.
+const http = { timeoutMs: settings.timeoutMs, maxRetries: 1 };
 const providers = [
   { key: "ors", credential: "ORS_API_KEY", create: (key: string) => new OpenRouteServiceProvider({ authentication: key ? { type: "api-key", value: key } : undefined, baseUrl: settings.orsBaseUrl, http }) },
   { key: "graphhopper", credential: "GRAPHHOPPER_API_KEY", create: (key: string) => new GraphHopperProvider({ authentication: key ? { type: "api-key", value: key } : undefined, baseUrl: settings.graphHopperBaseUrl, http }) },
@@ -16,7 +18,11 @@ const providers = [
 const CENTRE: Coordinate = [5.12142, 52.09063];
 const STATION: Coordinate = [5.11142, 52.09];
 const coordinates = [CENTRE, STATION];
-let previousRequestFinished = false;
+const pacer = new ProviderPacer();
+
+function providerDelayMs(provider: string): number {
+  return provider === "OpenRouteService" ? settings.orsDelayMs : settings.graphHopperDelayMs;
+}
 
 function expectCoordinate(value: number[]) {
   expect(value.length).toBeGreaterThanOrEqual(2);
@@ -117,21 +123,24 @@ describe("live provider capability matrix", () => {
           recordUnavailable(test);
           return;
         }
-        // Sleep before Router creates AbortSignal.timeout, so pacing cannot consume its timeout.
-        if (apiKey && previousRequestFinished) await new Promise((resolve) => setTimeout(resolve, settings.delayMs));
-        await recordCase(test, async () => {
-          if (!apiKey) throw new MissingCredentialError(`Missing ${definition.credential}. Configure it in .env or select another provider with WAYBOUND_LIVE_PROVIDERS.`);
-          try {
-            await exercise(test, router);
-          } catch (error) {
-            if (router.getObservedAvailability(test.feature, test.profile)?.availability === "unavailable") {
-              throw new UnavailableCapabilityError("Capability unavailable for this provider/account.");
+        // Wait before Router creates AbortSignal.timeout, so pacing cannot consume it.
+        if (apiKey) await pacer.wait(provider.name, providerDelayMs(provider.name));
+        try {
+          await recordCase(test, async () => {
+            if (!apiKey) throw new MissingCredentialError(`Missing ${definition.credential}. Configure it in .env or select another provider with WAYBOUND_LIVE_PROVIDERS.`);
+            try {
+              await exercise(test, router);
+            } catch (error) {
+              if (router.getObservedAvailability(test.feature, test.profile)?.availability === "unavailable") {
+                throw new UnavailableCapabilityError("Capability unavailable for this provider/account.");
+              }
+              throw error;
             }
-            throw error;
-          }
-          finally { previousRequestFinished = true; }
-        });
-      }, settings.timeoutMs + settings.delayMs + 10_000);
+          });
+        } finally {
+          if (apiKey) pacer.complete(provider.name);
+        }
+      }, settings.timeoutMs * 2 + providerDelayMs(provider.name) + 10_000);
     }
   }
 });

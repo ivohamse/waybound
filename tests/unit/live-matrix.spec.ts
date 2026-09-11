@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { GraphHopperProvider, OpenRouteServiceProvider } from "../../src/index";
+import { GraphHopperProvider, OpenRouteServiceProvider, WayboundError } from "../../src/index";
 import { buildCases, caseId, liveSettings, type LiveCase } from "../live/support/matrix";
 import { ProviderPacer } from "../live/support/pacing";
+import { retryRateLimitedOnce } from "../live/support/retry";
 import { MissingCredentialError, recordCase, type LiveRecord } from "../live/support/record";
 
 const testCase: LiveCase = { provider: "GraphHopper", feature: "matrix", profile: "hike" };
@@ -41,11 +42,28 @@ describe("live capability matrix", () => {
   });
 
   it("validates provider selection and provider-specific pacing settings", () => {
-    expect(liveSettings({})).toEqual({ providers: ["ors", "graphhopper"], delayMs: 0, orsDelayMs: 0, graphHopperDelayMs: 1500, timeoutMs: 10000, orsBaseUrl: undefined, graphHopperBaseUrl: undefined });
+    expect(liveSettings({})).toEqual({ providers: ["ors", "graphhopper"], delayMs: 0, orsDelayMs: 0, graphHopperDelayMs: 1500, maxRetryAfterMs: 10000, timeoutMs: 10000, orsBaseUrl: undefined, graphHopperBaseUrl: undefined });
     expect(liveSettings({ WAYBOUND_LIVE_PROVIDERS: "ors", WAYBOUND_LIVE_DELAY_MS: "750", WAYBOUND_LIVE_ORS_DELAY_MS: "100" })).toMatchObject({ providers: ["ors"], delayMs: 750, orsDelayMs: 100, graphHopperDelayMs: 750 });
+    expect(liveSettings({ WAYBOUND_LIVE_DELAY_MS: "0" })).toMatchObject({ orsDelayMs: 0, graphHopperDelayMs: 0 });
     expect(() => liveSettings({ WAYBOUND_LIVE_PROVIDERS: "typo" })).toThrow();
     expect(() => liveSettings({ WAYBOUND_LIVE_DELAY_MS: "-1" })).toThrow();
     expect(() => liveSettings({ WAYBOUND_LIVE_TIMEOUT_MS: "NaN" })).toThrow();
+  });
+
+  it("retries a bounded rate limit once", async () => {
+    const error = new WayboundError("RATE_LIMITED", "Slow down");
+    const execute = vi.fn<() => Promise<string>>().mockRejectedValueOnce(error).mockResolvedValueOnce("ok");
+    const sleep = vi.fn<() => Promise<void>>().mockResolvedValue();
+    await expect(retryRateLimitedOnce(execute, { getRetryAfterMs: () => 500, maxRetryAfterMs: 1_000, sleep })).resolves.toBe("ok");
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(500);
+  });
+
+  it("does not retry an unbounded rate limit", async () => {
+    const error = new WayboundError("RATE_LIMITED", "Slow down");
+    const execute = vi.fn<() => Promise<void>>().mockRejectedValue(error);
+    await expect(retryRateLimitedOnce(execute, { getRetryAfterMs: () => 10_001, maxRetryAfterMs: 10_000 })).rejects.toBe(error);
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("paces each provider independently", async () => {

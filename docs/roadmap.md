@@ -1,14 +1,13 @@
 # Roadmap
 
-## Current direction
+Waybound is preparing its first npm alpha release. The immediate focus is a reliable public API, documentation and live-provider validation.
 
-Waybound is preparing its first npm alpha release. The near-term focus is documentation, reliable live-provider validation and a clear public API.
+## Before v1.0
 
-## Planned contents
+- Stabilize the public API.
+- Expand provider and feature support where it adds clear value.
+- Improve documentation and examples.
+- Define backwards-compatibility guarantees.
+- Validate the v1 API through beta and release-candidate prereleases.
 
-- Release milestones
-- Supported-provider improvements
-- Capability probing and account-plan research
-- Provider-specific package bundles
-
-> This is a directional roadmap, not a compatibility promise.
+This roadmap is directional and not a compatibility promise.

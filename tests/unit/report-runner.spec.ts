@@ -32,7 +32,7 @@ describe("report runner", () => {
       const report = JSON.parse(readFileSync(join(directory, "latest.json"), "utf8"));
       expect(report.numFailedTests).toBe(1);
       expect(report.testResults[0].assertionResults[0].status).toBe("failed");
-      expect(report.waybound).toMatchObject({ schemaVersion: 1, failed: 1, recordedCases: 1 });
+      expect(report.waybound).toMatchObject({ schemaVersion: 2, failed: 1, inconclusive: 0, outcome: "failed", recordedCases: 1 });
       expect(report).not.toHaveProperty("stale");
       const log = readFileSync(join(directory, "latest.log"), "utf8");
       expect(log).toContain("RATE_LIMITED");
@@ -40,6 +40,20 @@ describe("report runner", () => {
       const history = readdirSync(join(directory, "history"));
       expect(history).toHaveLength(1);
       expect(JSON.parse(readFileSync(join(directory, "history", history[0]), "utf8"))).toEqual(report);
+    });
+  });
+
+  it("surfaces rate limits as an inconclusive live outcome", () => {
+    withRunner(`
+      import { writeFileSync } from 'node:fs';
+      const output = process.argv.find(arg => arg.startsWith('--outputFile.json=')).split('=').slice(1).join('=');
+      writeFileSync(output, JSON.stringify({ numFailedTests: 0, testResults: [] }));
+      writeFileSync(process.env.WAYBOUND_LIVE_METADATA_FILE, JSON.stringify({ id: 'GraphHopper / matrix / hike', status: 'inconclusive', http: [{status:429}], wayboundErrorCode:'RATE_LIMITED', failureKind:'rate-limit', durationMs:12 }) + '\\n');
+    `, (root, result) => {
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(join(root, "test-output/live/latest.json"), "utf8"));
+      expect(report.waybound).toMatchObject({ passed: 0, failed: 0, inconclusive: 1, outcome: "inconclusive" });
+      expect(readFileSync(join(root, "test-output/live/latest.log"), "utf8")).toContain("1 inconclusive");
     });
   });
 

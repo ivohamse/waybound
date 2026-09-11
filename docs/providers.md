@@ -1,17 +1,20 @@
 # Providers
 
-## Goal
+Waybound currently ships adapters for OpenRouteService and GraphHopper.
 
-Describe the supported routing providers and their feature coverage.
+| Feature | OpenRouteService | GraphHopper |
+| --- | --- | --- |
+| Routing | ✅ | ✅ |
+| Nearest point | ✅ Native snapping | ✅ Approximation |
+| Matrix | ✅ | ✅ |
+| Isochrones | ✅ | ✅ |
 
-## Planned contents
+## OpenRouteService
 
-- OpenRouteService
-- GraphHopper
-- Provider profiles and provider-specific constraints
-- Adding a provider in a future major release
+Use `OpenRouteServiceProvider` with an API key.
 
-## Related guides
+## GraphHopper
 
-- [Capabilities and availability](capabilities.md)
-- [Configuration](configuration.md)
+Use `GraphHopperProvider` with an API key. Its nearest-point implementation uses reverse geocoding rather than native road-network snapping. Waybound exposes the result through the same API while declaring it as an approximation.
+
+Adapter support does not guarantee account or endpoint availability; see [Capabilities and availability](capabilities.md).

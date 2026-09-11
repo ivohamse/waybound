@@ -29,15 +29,19 @@ export function liveSettings(env: Record<string, string | undefined>) {
     throw new Error("WAYBOUND_LIVE_PROVIDERS must contain ors and/or graphhopper, separated by commas.");
   }
   const readMs = (key: string, fallback: number, minimum: number) => {
-    const value = env[key] === undefined ? fallback : Number(env[key]);
+    const rawValue = env[key]?.trim();
+    const value = rawValue ? Number(rawValue) : fallback;
     if (!Number.isInteger(value) || value < minimum || value > 60_000) {
       throw new Error(`${key} must be an integer between ${minimum} and 60000.`);
     }
     return value;
   };
+  const delayMs = readMs("WAYBOUND_LIVE_DELAY_MS", 0, 0);
   return {
     providers: [...new Set(providers)],
-    delayMs: readMs("WAYBOUND_LIVE_DELAY_MS", 1_500, 0),
+    delayMs,
+    orsDelayMs: readMs("WAYBOUND_LIVE_ORS_DELAY_MS", delayMs, 0),
+    graphHopperDelayMs: readMs("WAYBOUND_LIVE_GRAPHHOPPER_DELAY_MS", delayMs || 1_500, 0),
     timeoutMs: readMs("WAYBOUND_LIVE_TIMEOUT_MS", 10_000, 1),
     orsBaseUrl: env.ORS_BASE_URL?.trim() || undefined,
     graphHopperBaseUrl: env.GRAPHHOPPER_BASE_URL?.trim() || undefined,

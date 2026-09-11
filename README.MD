@@ -1,24 +1,31 @@
-# waybound 🚀
+# Waybound
 
-A unified, multi-provider routing and geospatial engine for TypeScript.
+A unified TypeScript routing API for multiple providers.
 
-Waybound provides one consistent API for routing providers such as OpenRouteService and GraphHopper. It normalizes provider-specific behavior into shared, type-safe contracts for routing, nearest-point lookup, matrices and isochrones.
+Waybound gives applications a consistent, type-safe interface for routing, nearest-point lookup, matrices and isochrones, independent of the selected provider.
 
-> **Status: alpha**
-> Waybound is still evolving before v1.0 and breaking changes may occur between minor releases.
+> **Status: alpha.** Breaking changes may occur before v1.0. [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md)
+
+## Supported providers
+
+| Feature | OpenRouteService | GraphHopper |
+| --- | --- | --- |
+| Routing | ✅ | ✅ |
+| Nearest point | ✅ Native snapping | ✅ Approximation |
+| Matrix | ✅ | ✅ |
+| Isochrones | ✅ | ✅ |
+
+See [Providers](docs/providers.md) for provider-specific notes and configuration.
 
 ## Features
 
-- Unified API for OpenRouteService and GraphHopper
-- Routing with optional turn-by-turn instructions
-- Nearest-point lookup
-- Distance and duration matrices
-- Time- and distance-based isochrones
+- Provider-neutral, type-safe contracts
+- Routes with optional turn-by-turn instructions
+- Nearest-point lookup, matrices and isochrones
 - Shared `car`, `bike` and `hike` profiles
 - GeoJSON geometry output
-- Provider capability inspection
-- Typed errors and built-in query validation
-- Configurable timeout and retry handling
+- Capability inspection and observed availability
+- Typed errors, query validation, timeouts and retries
 
 ## Installation
 
@@ -28,7 +35,7 @@ npm install waybound@alpha
 
 ## Quick start
 
-```typescript
+```ts
 import { Router, OpenRouteServiceProvider } from "waybound";
 
 const router = new Router({
@@ -38,187 +45,31 @@ const router = new Router({
 });
 
 const response = await router.getRoute({
-  coordinates: [
-    [5.12142, 52.09063],
-    [5.11142, 52.09],
-  ],
+  coordinates: [[5.12142, 52.09063], [5.11142, 52.09]],
   profile: "hike",
-  options: {
-    instructions: true,
-  },
+  options: { instructions: true },
 });
 
 const route = response.routes[0];
-
-console.log(route.distance);
-console.log(route.duration);
-console.log(route.geometry);
+console.log(route.distance, route.duration, route.geometry);
 ```
-
-Switching providers only requires passing another provider instance:
-
-```typescript
-import { Router, GraphHopperProvider } from "waybound";
-
-const router = new Router({
-  provider: new GraphHopperProvider({
-    authentication: { type: "api-key", value: "YOUR_API_KEY" },
-  }),
-});
-```
-
-## Provider configuration and migration
-
-`RouterConfig.provider` accepts a `RoutingProvider` instance. The router does not
-select or construct providers. Both built-in provider classes and the
-`RoutingProvider` interface are exported from `waybound`, so custom providers can
-implement the same contract without changing the router.
-
-This replaces the earlier `{ provider: "ors", apiKey, http }` configuration.
-Move credentials and HTTP options to the provider configuration object:
-
-```typescript
-const provider = new OpenRouteServiceProvider({
-  authentication: { type: "api-key", value: "YOUR_API_KEY" },
-  http: { timeoutMs: 5_000, maxRetries: 1 },
-});
-const router = new Router({ provider });
-```
-
-The router still handles query validation, capability checks and error
-normalization. Provider selection strings are now an application concern; the
-former `ProviderType` export has been removed. Authentication is declared per feature in `capabilities`; the router rejects a missing or incompatible credential before making a request. Custom implementations can declare authentication-free features.
-
-Packaging remains a single npm package with the existing root entry point.
-
-## Authentication
-
-Authentication belongs to the provider instance, not `Router`. Each feature exposes
-its requirement in `router.capabilities.<feature>.authentication`:
-
-```ts
-{
-  required: true,
-  schemes: ["api-key"],
-}
-```
-
-The built-in hosted ORS and GraphHopper adapters currently require an API key for
-all implemented features. Constructing either provider without credentials is
-allowed, but the router rejects a call with `MISSING_CREDENTIAL` before sending an
-HTTP request. A credential with an unsupported scheme produces
-`UNSUPPORTED_AUTHENTICATION`.
-
-Custom providers can expose an authentication-free feature with
-`authentication: { required: false, schemes: [] }`; they set the non-sensitive
-`authenticationSchemes` list on the provider instance. Credentials themselves are
-never exposed through `Router` or capabilities.
-
-### Custom endpoints
-
-Built-in providers use their public hosted API by default. Set `baseUrl` to use a
-compatible self-hosted or alternative endpoint; a trailing slash is normalized.
-
-```ts
-const provider = new GraphHopperProvider({
-  baseUrl: "http://localhost:8989/api/1",
-  authentication: { type: "api-key", value: "YOUR_API_KEY" },
-});
-```
-
-`baseUrl` must be an absolute HTTP(S) URL without query parameters or a hash.
-The endpoint's enabled features and authentication policy remain the consumer's
-responsibility; static capabilities describe the adapter, not a particular account
-or server deployment.
-
-### Observed availability
-
-`capabilities` describes adapter support. To inspect what a configured endpoint and
-credentials have actually allowed, use `probeCapabilities`. Probing is always
-explicit; normal requests never send a second availability request. Successful and
-failed normal requests update the same in-memory observation cache, which is scoped
-to the provider instance and expires after one hour.
-
-```ts
-const observations = await router.probeCapabilities({
-  coordinates: [[5.12142, 52.09063], [5.11142, 52.09]],
-  targets: [{ feature: "isochrones", profile: "hike" }],
-});
-
-const isochrones = router.getObservedAvailability("isochrones", "hike");
-// "available", "unavailable" or "unknown" via isochrones?.availability
-```
-
-Use coordinates covered by the selected endpoint. `force: true` bypasses a valid
-cached observation for an explicit refresh. Rate limits, timeouts and ambiguous
-provider errors are reported as `unknown`, not as an entitlement decision.
 
 ## Core conventions
 
-Waybound normalizes provider responses into a shared contract.
+- Coordinates use `[longitude, latitude]`.
+- Distances use meters; durations use seconds.
+- Geometries use GeoJSON.
 
-- Coordinates use `[longitude, latitude]`
-- Distances are expressed in **meters**
-- Durations are expressed in **seconds**
-- Standalone geometric results use **GeoJSON**
+## Documentation
 
-For example:
-
-- routes return a GeoJSON `LineString`
-- nearest results return a GeoJSON `Point`
-- isochrones return GeoJSON `Polygon` or `MultiPolygon`
-
-## Supported features
-
-| Feature | OpenRouteService | GraphHopper |
-| --- | --- | --- |
-| Routing | ✅ | ✅ |
-| Nearest point | ✅ Native snapping | ✅ Approximation |
-| Matrix | ✅ | ✅ |
-| Isochrones | ✅ | ✅ |
-
-GraphHopper currently implements nearest-point lookup using reverse geocoding rather than native road-network snapping. Waybound exposes this through the same API, but marks the capability as an approximation.
-
-## Error handling
-
-Waybound uses `WayboundError` to normalize validation, provider, network and capability errors.
-
-```typescript
-import { WayboundError } from "waybound";
-
-try {
-  // Waybound request
-} catch (error) {
-  if (error instanceof WayboundError) {
-    console.error(error.code);
-    console.error(error.message);
-  }
-}
-```
-
-## Roadmap
-
-### v0.4.0
-
-- Public API contract hardening
-- Consistent GeoJSON geometry contracts
-- Consistent distance and duration conventions
-- Documentation cleanup
-- First npm alpha publication
-
-### Before v1.0
-
-- Further stabilize the public API
-- Expand provider and feature support
-- Improve documentation
-- Define backwards-compatibility guarantees
-- Validate the v1 API through beta and release-candidate prereleases
-
-## Testing
-
-Run `npm run test:report` for offline tests, or `npm run test:live:report` for
-the provider capability matrix (API keys required). See [test reporting](tests/reporting/README.md)
-for provider selection, pacing, coverage and structured diagnostics.
+- [Getting started](docs/getting-started.md)
+- [Configuration](docs/configuration.md)
+- [Providers](docs/providers.md)
+- [Capabilities and availability](docs/capabilities.md)
+- [Errors](docs/errors.md)
+- [Live testing](docs/live-testing.md)
+- [Playground](docs/playground.md)
+- [Contributing](docs/contributing.md)
 
 ## License
 

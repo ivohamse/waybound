@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@types/dompurify": "^3.0.5",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "maplibre-gl": "^6.9.0",
     "waybound": "file:.."
   },
